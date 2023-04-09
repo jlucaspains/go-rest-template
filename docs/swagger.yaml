@@ -1,0 +1,183 @@
+definitions:
+  models.ErrorResult:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+    type: object
+  models.HealthResult:
+    properties:
+      healthy:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/models.HealthResultItem'
+        type: array
+    type: object
+  models.HealthResultItem:
+    properties:
+      healthy:
+        type: boolean
+      name:
+        type: string
+    type: object
+  models.Person:
+    properties:
+      created_at:
+        type: string
+      email:
+        maxLength: 100
+        minLength: 3
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      updated_at:
+        type: string
+    required:
+    - email
+    - name
+    type: object
+info:
+  contact: {}
+paths:
+  /health:
+    get:
+      description: Returns HTTP 200 if the app is healthy and 400 if not
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.HealthResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.HealthResult'
+      summary: Determines if the app is healthy
+      tags:
+      - health
+  /person:
+    post:
+      consumes:
+      - application/json
+      description: add by json person
+      parameters:
+      - description: Add person
+        in: body
+        name: person
+        required: true
+        schema:
+          $ref: '#/definitions/models.Person'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/models.Person'
+        "400":
+          description: Bad Request
+          schema:
+            items:
+              type: string
+            type: array
+      security:
+      - OAuth2Implicit: []
+      summary: Add person
+      tags:
+      - person
+  /person/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete by id person
+      parameters:
+      - description: Person ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResult'
+      security:
+      - OAuth2Implicit: []
+      summary: Delete person
+      tags:
+      - person
+    get:
+      description: get person by ID
+      parameters:
+      - description: Person ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Person'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResult'
+      security:
+      - OAuth2Implicit: []
+      summary: Retrieves a single person by id
+      tags:
+      - person
+    put:
+      consumes:
+      - application/json
+      description: update by json person
+      parameters:
+      - description: Person ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update person
+        in: body
+        name: person
+        required: true
+        schema:
+          $ref: '#/definitions/models.Person'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/models.Person'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResult'
+      security:
+      - OAuth2Implicit: []
+      summary: Update person
+      tags:
+      - person
+securityDefinitions:
+  OAuth2Implicit:
+    authorizationUrl: https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/oauth2/v2.0/authorize
+    flow: implicit
+    scopes:
+      api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api: "\tAPI"
+    type: oauth2
+swagger: "2.0"
