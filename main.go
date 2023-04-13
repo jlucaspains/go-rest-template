@@ -65,7 +65,7 @@ func initDB() *gorm.DB {
 		log.Fatal("DB_CONNECTION_STRING is a required parameter")
 	}
 
-	db, err := db.Init(provider, connectionString)
+	db, err := db.Init(provider, connectionString, true)
 
 	if err != nil {
 		log.Fatalf("Failed to initialize DB. Error: %v", err)

@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func Init(provider string, connectionString string) (*gorm.DB, error) {
+func Init(provider string, connectionString string, migrate bool) (*gorm.DB, error) {
 	var dialector gorm.Dialector
 
 	switch provider {
@@ -24,8 +24,10 @@ func Init(provider string, connectionString string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&models.Person{}); err != nil {
-		return nil, err
+	if migrate {
+		if err := db.AutoMigrate(&models.Person{}); err != nil {
+			return nil, err
+		}
 	}
 
 	return db, nil

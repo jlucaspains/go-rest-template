@@ -1,2 +1,4 @@
 *.exe*
 .env
+coverage
+*.db

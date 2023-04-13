@@ -1,0 +1,45 @@
+apiVersion: apps/v1 
+kind: Deployment  # K8s Deployment
+metadata:
+  name: web-app
+  labels:
+    app: web-app
+spec:
+  replicas: 3
+  selector:
+      matchLabels:
+        app: web-app 
+  progressDeadlineSeconds: 120
+  template:
+    metadata:
+      labels:
+        app: web-app
+        color: blue # labels for blue / green deployments
+    spec:
+      containers:
+      - name: web-app
+        image: goapi-template-app:latest
+        imagePullPolicy: Never
+        ports:
+          - containerPort: 8000
+        livenessProbe:          
+          httpGet:
+            path: /health
+            port: 8000
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+        envFrom:
+          - configMapRef:
+              name: app-config
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+      imagePullSecrets:
+        - name: regcred
+      restartPolicy: Always

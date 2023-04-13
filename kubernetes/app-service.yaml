@@ -1,0 +1,17 @@
+
+apiVersion: v1
+kind: Service # K8s Service
+metadata:
+  name: web-app-svc
+  labels:
+    app: web-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: web-app
+    color: blue # labels for blue / green deployments
+  ports:
+  - protocol: TCP
+    name: http
+    port: 8000
+    targetPort: 8000

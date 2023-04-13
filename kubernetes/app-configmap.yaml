@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  labels:
+    app: web-app
+data:
+  ENV: "local"
+  PORT: ":8000"
+  AUTH_CONFIG_URL: "https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/v2.0/.well-known/openid-configuration"
+  AUTH_AUDIENCE: "api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api/"
+  ENABLE_SWAGGER: "true"
+  DB_CONNECTION_STRING: "host=postgresdb user=testUser password=testPassword dbname=testDB port=5432 sslmode=disable TimeZone=America/Denver"
