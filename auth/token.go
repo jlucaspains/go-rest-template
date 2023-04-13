@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -10,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
-func isTokenValid(r *http.Request, authConfig *models.AuthConfiguration) error {
-	token, err := verifyToken(r, authConfig)
+func isTokenValid(r *http.Request, authConfig *models.AuthConfiguration, jwks jwk.Set) error {
+	token, err := verifyToken(r, authConfig, jwks)
 	if err != nil {
 		return err
 	}
@@ -62,19 +61,14 @@ func extractToken(r *http.Request) (string, error) {
 	return strArr[1], nil
 }
 
-func getJwks(jwksURL, kid string) (*rsa.PublicKey, error) {
-	set, err := jwk.Fetch(context.Background(), jwksURL)
-	if err != nil {
-		return nil, fmt.Errorf("could not download keys")
-	}
-
-	key, ok := set.LookupKeyID(kid)
+func getJwks(jwks jwk.Set, kid string) (*rsa.PublicKey, error) {
+	key, ok := jwks.LookupKeyID(kid)
 	if !ok {
 		return nil, fmt.Errorf("key %v not found", kid)
 	}
 
 	publicKey := &rsa.PublicKey{}
-	err = key.Raw(publicKey)
+	err := key.Raw(publicKey)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse pubkey")
 	}
@@ -82,7 +76,7 @@ func getJwks(jwksURL, kid string) (*rsa.PublicKey, error) {
 	return publicKey, nil
 }
 
-func verifyToken(r *http.Request, config *models.AuthConfiguration) (*jwt.Token, error) {
+func verifyToken(r *http.Request, config *models.AuthConfiguration, jwks jwk.Set) (*jwt.Token, error) {
 	tokenString, err := extractToken(r)
 	if err != nil {
 		return nil, err
@@ -107,7 +101,7 @@ func verifyToken(r *http.Request, config *models.AuthConfiguration) (*jwt.Token,
 			return nil, fmt.Errorf("token signature alg and issuer alg do not match")
 		}
 
-		jwks, err := getJwks(config.JWKSUri, kid)
+		jwks, err := getJwks(jwks, kid)
 		if err != nil {
 			return nil, err
 		}

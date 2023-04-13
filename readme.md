@@ -53,18 +53,25 @@ DB_CONNECTION_STRING=mydb.db
 ```
 
 ### Run
-```cmd
+```powershell
 cd goapi-template
 go run .\main.go
 ```
 
 ### Test
-```cmd
+Without test coverage:
+```powershell
 go test ./...
 ```
 
+With HTML coverage output:
+```powershell
+go test -coverprofile=coverage ./...
+go tool cover -html=coverage
+```
+
 ### Build
-```cmd
+```powershell
 go build -o ./goapi-template ./main.go
 ```
 
@@ -99,6 +106,8 @@ docker compose up
 You may use minikube locally to test kubernetes configuration.
 
 ```powershell
+kubectl create secret generic prod-db-secret --from-literal=username=produser --from-literal=password=Y4nys7f11
+
 kubectl apply -f .\db-configmap.yaml
 kubectl apply -f .\db-pvp.yaml
 kubectl apply -f .\db-pv.yaml

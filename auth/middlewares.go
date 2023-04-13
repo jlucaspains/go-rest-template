@@ -6,22 +6,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/open-policy-agent/opa/rego"
 )
 
 var authConfig *models.AuthConfiguration
 var opaQuery *rego.PreparedEvalQuery
+var cachedSet jwk.Set
 
 func Init() {
 	authConfig = loadConfig()
 	opaQuery = loadOpaQuery()
+	cachedSet = loadJWKSCache()
 }
 
 func TokenAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		err := isTokenValid(c.Request, authConfig)
+		err := isTokenValid(c.Request, authConfig, cachedSet)
 
 		if err != nil {
 			log.Printf("token check failed %v", err)
@@ -41,10 +45,6 @@ func OpaMiddleware() gin.HandlerFunc {
 			"method": c.Request.Method,
 			"path":   c.Request.RequestURI,
 			"token":  token,
-			"subject": map[string]interface{}{
-				"user":  "user",
-				"group": "groups",
-			},
 		}
 		res, err := opaQuery.Eval(context.TODO(), rego.EvalInput(input))
 		if err != nil {
@@ -86,4 +86,18 @@ func loadOpaQuery() *rego.PreparedEvalQuery {
 	}
 
 	return &query
+}
+
+func loadJWKSCache() jwk.Set {
+	ctx := context.Background()
+	uri := authConfig.JWKSUri
+
+	c := jwk.NewCache(ctx)
+	c.Register(uri, jwk.WithMinRefreshInterval(60*time.Minute))
+	_, err := c.Refresh(ctx, uri)
+	if err != nil {
+		log.Fatalf("Failed to load JWKS. Error: %v", err)
+	}
+
+	return jwk.NewCachedSet(c, uri)
 }
