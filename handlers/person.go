@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"goapi-template/models"
-	"goapi-template/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +31,7 @@ func (h Handlers) GetPerson(c *gin.Context) {
 
 	body := models.Person{}
 	if result := h.DB.First(&body, id); result.Error != nil {
-		c.AbortWithStatusJSON(util.ErrorToHttpResult(result.Error))
+		c.AbortWithStatusJSON(h.ErrorToHttpResult(result.Error))
 		return
 	}
 
@@ -56,14 +55,14 @@ func (h Handlers) GetPerson(c *gin.Context) {
 func (h Handlers) PostPerson(c *gin.Context) {
 	body := models.Person{}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(util.ErrorToHttpResult(err))
+		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
 		return
 	}
 
 	body.ID = 0 // ensure we leverage auto increment
 
 	if result := h.DB.Create(&body); result.Error != nil {
-		c.AbortWithStatusJSON(util.ErrorToHttpResult(result.Error))
+		c.AbortWithStatusJSON(h.ErrorToHttpResult(result.Error))
 		return
 	}
 
@@ -93,13 +92,13 @@ func (h Handlers) PutPerson(c *gin.Context) {
 	}
 	body := models.Person{}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(util.ErrorToHttpResult(err))
+		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
 		return
 	}
 
 	result := h.DB.Model(&models.Person{ID: int(id)}).Updates(&body)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(util.ErrorToHttpResult(err))
+		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
 		return
 	}
 
@@ -133,7 +132,7 @@ func (h Handlers) DeletePerson(c *gin.Context) {
 	result := h.DB.Delete(&models.Person{}, id)
 
 	if result.Error != nil {
-		c.AbortWithStatusJSON(util.ErrorToHttpResult(err))
+		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
 		return
 	}
 

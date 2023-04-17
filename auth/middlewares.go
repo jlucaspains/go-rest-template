@@ -25,6 +25,8 @@ func Init() {
 
 func TokenAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		start := time.Now()
+
 		err := isTokenValid(c.Request, authConfig, cachedSet)
 
 		if err != nil {
@@ -33,12 +35,16 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		elapsed := time.Since(start)
+		log.Printf("Auth Middleware took %v", elapsed)
+
 		c.Next()
 	}
 }
 
 func OpaMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		start := time.Now()
 		token, _ := extractToken(c.Request)
 
 		input := map[string]interface{}{
@@ -58,6 +64,9 @@ func OpaMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		elapsed := time.Since(start)
+		log.Printf("Opa Middleware took %v", elapsed)
 
 		c.Next()
 	}

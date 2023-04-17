@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -28,11 +29,15 @@ func loadEnv() {
 }
 
 func setupRouter(db *gorm.DB) *gin.Engine {
-	router := gin.Default()
+	engine := gin.New()
+	engine.Use(gin.Logger())
+	engine.Use(gin.Recovery())
+
+	setTrustedProxies(engine)
 
 	handlers := &handlers.Handlers{DB: db}
 
-	authGroup := router.Group("person", auth.TokenAuthMiddleware(), auth.OpaMiddleware())
+	authGroup := engine.Group("person", auth.TokenAuthMiddleware(), auth.OpaMiddleware())
 	{
 		authGroup.GET(":id", handlers.GetPerson)
 		authGroup.POST("", handlers.PostPerson)
@@ -40,7 +45,7 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 		authGroup.DELETE(":id", handlers.DeletePerson)
 	}
 
-	router.GET("/health", handlers.GetHealth)
+	engine.GET("/health", handlers.GetHealth)
 
 	enableSwagger, ok := os.LookupEnv("ENABLE_SWAGGER")
 	if !ok {
@@ -48,10 +53,10 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 	}
 
 	if enableSwagger == "true" {
-		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler, ginSwagger.Oauth2DefaultClientID("c571ab3c-0fde-43b2-b010-77e7bdd0d6f7")))
+		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler, ginSwagger.Oauth2DefaultClientID("c571ab3c-0fde-43b2-b010-77e7bdd0d6f7")))
 	}
 
-	return router
+	return engine
 }
 
 func initDB() *gorm.DB {
@@ -72,6 +77,17 @@ func initDB() *gorm.DB {
 	}
 
 	return db
+}
+
+func setTrustedProxies(engine *gin.Engine) {
+	if config, ok := os.LookupEnv("GIN_TRUSTED_PROXIES"); ok {
+		if config == "nil" {
+			engine.SetTrustedProxies(nil)
+		} else {
+			result := strings.Split(config, ",")
+			engine.SetTrustedProxies(result)
+		}
+	}
 }
 
 // @securitydefinitions.oauth2.implicit					OAuth2Implicit
