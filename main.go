@@ -5,7 +5,9 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
@@ -28,10 +30,29 @@ func loadEnv() {
 	}
 }
 
+func getAllowedOrigins() string {
+	allowedOrigin, ok := os.LookupEnv("ALLOWED_ORIGIN")
+	if !ok {
+		allowedOrigin = "http://localhost:8000"
+	}
+
+	return allowedOrigin
+}
+
 func setupRouter(db *gorm.DB) *gin.Engine {
+	log.Print("Starting API... \n")
+
 	engine := gin.New()
 	engine.Use(gin.Logger())
 	engine.Use(gin.Recovery())
+	engine.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{getAllowedOrigins()},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin"},
+		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	setTrustedProxies(engine)
 
@@ -106,13 +127,12 @@ func main() {
 
 	log.Print("Setting up API router...\n")
 	docs.SwaggerInfo.BasePath = "/"
+
 	router := setupRouter(db)
 
-	log.Print("Starting API... \n")
 	port, ok := os.LookupEnv("PORT")
 	if !ok {
 		port = "localhost:8000"
 	}
-
 	router.Run(port)
 }
