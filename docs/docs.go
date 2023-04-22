@@ -234,20 +234,23 @@ const docTemplate = `{
         "models.HealthResult": {
             "type": "object",
             "properties": {
-                "healthy": {
-                    "type": "boolean"
-                },
-                "items": {
+                "dependencies": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.HealthResultItem"
                     }
+                },
+                "healthy": {
+                    "type": "boolean"
                 }
             }
         },
         "models.HealthResultItem": {
             "type": "object",
             "properties": {
+                "error": {
+                    "type": "string"
+                },
                 "healthy": {
                     "type": "boolean"
                 },

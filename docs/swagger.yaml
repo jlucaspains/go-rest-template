@@ -8,15 +8,17 @@ definitions:
     type: object
   models.HealthResult:
     properties:
-      healthy:
-        type: boolean
-      items:
+      dependencies:
         items:
           $ref: '#/definitions/models.HealthResultItem'
         type: array
+      healthy:
+        type: boolean
     type: object
   models.HealthResultItem:
     properties:
+      error:
+        type: string
       healthy:
         type: boolean
       name:

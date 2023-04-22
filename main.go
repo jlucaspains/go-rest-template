@@ -111,10 +111,10 @@ func setTrustedProxies(engine *gin.Engine) {
 	}
 }
 
-// @securitydefinitions.oauth2.implicit					OAuth2Implicit
-// @authorizationUrl										https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/oauth2/v2.0/authorize
-// @tokenUrl												https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/oauth2/v2.0/token
-// @scope.api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api	API
+//	@securitydefinitions.oauth2.implicit					OAuth2Implicit
+//	@authorizationUrl										https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/oauth2/v2.0/authorize
+//	@tokenUrl												https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/oauth2/v2.0/token
+//	@scope.api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api	API
 func main() {
 	log.Print("loading .env file...\n")
 	loadEnv()

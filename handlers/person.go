@@ -18,9 +18,9 @@ import (
 //
 //	@Tags			person
 //	@Produce		json
-//	@Param			id	path		int	true	"Person ID"
-//	@Success		200	{object}	models.Person
-//	@Failure		400	{object}	models.ErrorResult
+//	@Param			id				path		int	true	"Person ID"
+//	@Success		200				{object}	models.Person
+//	@Failure		400				{object}	models.ErrorResult
 //	@Router			/person/{id}	[get]
 func (h Handlers) GetPerson(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
