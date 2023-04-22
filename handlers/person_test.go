@@ -74,6 +74,34 @@ func TestPostPersonMissingName(t *testing.T) {
 	assert.Equal(t, "Email is required", result.Errors[1])
 }
 
+func TestPostPersonDuplicate(t *testing.T) {
+	r, db := setup(true)
+	handlers := &Handlers{DB: db}
+	r.POST("/person", handlers.PostPerson)
+
+	person := models.Person{
+		Name:  "Test",
+		Email: "test@test.com",
+	}
+
+	jsonValue, _ := json.Marshal(person)
+	reqFound, _ := http.NewRequest("POST", "/person", bytes.NewBuffer(jsonValue))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, reqFound)
+
+	jsonValue2, _ := json.Marshal(person)
+	reqFound2, _ := http.NewRequest("POST", "/person", bytes.NewBuffer(jsonValue2))
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, reqFound2)
+
+	assert.Equal(t, http.StatusConflict, w2.Code)
+
+	result := &models.ErrorResult{}
+	json.Unmarshal(w2.Body.Bytes(), result)
+
+	assert.Equal(t, "Record duplication detected", result.Errors[0])
+}
+
 func TestPutPersonSuccess(t *testing.T) {
 	r, db := setup(true)
 	handlers := &Handlers{DB: db}
