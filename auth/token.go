@@ -12,21 +12,33 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
-func isTokenValid(r *http.Request, authConfig *models.AuthConfiguration, jwks jwk.Set) error {
+func validateUserToken(r *http.Request, authConfig *models.AuthConfiguration, jwks jwk.Set) (*User, error) {
 	token, err := verifyToken(r, authConfig, jwks)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !token.Valid {
-		return fmt.Errorf("token is invalid")
+		return nil, fmt.Errorf("token is invalid")
 	}
 
-	if token.Claims.(jwt.MapClaims).VerifyAudience(authConfig.Audience, true) {
-		return fmt.Errorf("token not issue to correct audience")
+	claims := token.Claims.(jwt.MapClaims)
+	if claims.VerifyAudience(authConfig.Audience, true) {
+		return nil, fmt.Errorf("token not issue to correct audience")
 	}
 
-	return nil
+	user := &User{
+		ID:     claims["sub"].(string),
+		Name:   claims["name"].(string),
+		Email:  claims["email"].(string),
+		Claims: map[string]string{},
+	}
+
+	for _, v := range authConfig.ClaimFields {
+		user.Claims[v] = claims[v].(string)
+	}
+
+	return user, nil
 }
 
 func readAuthConfiguration(configUrl string) (*models.AuthConfiguration, error) {

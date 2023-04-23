@@ -5,4 +5,5 @@ type AuthConfiguration struct {
 	JWKSUri         string        `json:"jwks_uri"`
 	TokenSigningAlg []interface{} `json:"id_token_signing_alg_values_supported"`
 	Audience        string        `json:"audience"`
+	ClaimFields     []string      `json:"claims"`
 }

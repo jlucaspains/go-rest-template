@@ -60,6 +60,7 @@ func (h Handlers) PostPerson(c *gin.Context) {
 	}
 
 	body.ID = 0 // ensure we leverage auto increment
+	body.UpdateUser = h.GetUserEmail(c)
 
 	if result := h.DB.Create(&body); result.Error != nil {
 		c.AbortWithStatusJSON(h.ErrorToHttpResult(result.Error))
@@ -95,6 +96,8 @@ func (h Handlers) PutPerson(c *gin.Context) {
 		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
 		return
 	}
+
+	body.UpdateUser = h.GetUserEmail(c)
 
 	result := h.DB.Model(&models.Person{ID: int(id)}).Updates(&body)
 	if result.Error != nil {

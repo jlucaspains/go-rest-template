@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,13 +28,15 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
-		err := isTokenValid(c.Request, authConfig, cachedSet)
+		user, err := validateUserToken(c.Request, authConfig, cachedSet)
 
 		if err != nil {
 			log.Printf("token check failed %v", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}})
 			return
 		}
+
+		c.Set("User", user)
 
 		elapsed := time.Since(start)
 		log.Printf("Auth Middleware took %v", elapsed)
@@ -84,6 +87,10 @@ func loadConfig() *models.AuthConfiguration {
 	}
 
 	config.Audience = os.Getenv("AUTH_AUDIENCE")
+
+	if authClaims, ok := os.LookupEnv("AUTH_CLAIMS"); ok {
+		config.ClaimFields = strings.Split(authClaims, ",")
+	}
 
 	return config
 }

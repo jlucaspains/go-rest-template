@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"goapi-template/auth"
 	"goapi-template/db"
 	"goapi-template/models"
 	"net/http"
@@ -15,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func setup(migrate bool) (*gin.Engine, *gorm.DB) {
+func setup(migrate bool, useAuthMiddleware bool) (*gin.Engine, *gorm.DB) {
 	router := gin.Default()
 	godotenv.Load("../.testing.env")
 	db, err := db.Init("sqlite", ":memory:", migrate)
@@ -24,11 +25,19 @@ func setup(migrate bool) (*gin.Engine, *gorm.DB) {
 		panic(err)
 	}
 
+	if useAuthMiddleware {
+		authMiddleware := func(c *gin.Context) {
+			c.Set("User", &auth.User{ID: "Test", Name: "Test", Email: "mail@test.com"})
+			c.Next()
+		}
+		router.Use(authMiddleware)
+	}
+
 	return router, db
 }
 
 func TestPostPersonSuccess(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.POST("/person", handlers.PostPerson)
 
@@ -51,7 +60,7 @@ func TestPostPersonSuccess(t *testing.T) {
 }
 
 func TestPostPersonMissingName(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.POST("/person", handlers.PostPerson)
 
@@ -75,8 +84,9 @@ func TestPostPersonMissingName(t *testing.T) {
 }
 
 func TestPostPersonDuplicate(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
+
 	r.POST("/person", handlers.PostPerson)
 
 	person := models.Person{
@@ -103,7 +113,7 @@ func TestPostPersonDuplicate(t *testing.T) {
 }
 
 func TestPutPersonSuccess(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.PUT("/person/:id", handlers.PutPerson)
 
@@ -131,7 +141,7 @@ func TestPutPersonSuccess(t *testing.T) {
 }
 
 func TestPutPersonValidation(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.PUT("/person/:id", handlers.PutPerson)
 
@@ -157,7 +167,7 @@ func TestPutPersonValidation(t *testing.T) {
 }
 
 func TestPutPersonMissing(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.PUT("/person/:id", handlers.PutPerson)
 
@@ -176,7 +186,7 @@ func TestPutPersonMissing(t *testing.T) {
 }
 
 func TestPutPersonBadUrl(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.PUT("/person/:id", handlers.PutPerson)
 
@@ -188,7 +198,7 @@ func TestPutPersonBadUrl(t *testing.T) {
 }
 
 func TestGetPersonSuccess(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.GET("/person/:id", handlers.GetPerson)
 
@@ -214,7 +224,7 @@ func TestGetPersonSuccess(t *testing.T) {
 }
 
 func TestGetPersonNotFound(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.GET("/person/:id", handlers.GetPerson)
 
@@ -226,7 +236,7 @@ func TestGetPersonNotFound(t *testing.T) {
 }
 
 func TestGetPersonBadUrl(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.GET("/person/:id", handlers.GetPerson)
 
@@ -238,7 +248,7 @@ func TestGetPersonBadUrl(t *testing.T) {
 }
 
 func TestDeletePerson(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.DELETE("/person/:id", handlers.DeletePerson)
 
@@ -260,7 +270,7 @@ func TestDeletePerson(t *testing.T) {
 }
 
 func TestDeletePersonNotFound(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.DELETE("/person/:id", handlers.DeletePerson)
 
@@ -272,7 +282,7 @@ func TestDeletePersonNotFound(t *testing.T) {
 }
 
 func TestDeletePersonBadUrl(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 	r.DELETE("/person/:id", handlers.DeletePerson)
 

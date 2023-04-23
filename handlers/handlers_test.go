@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"goapi-template/auth"
 	"net/http"
 	"testing"
 
@@ -30,4 +31,51 @@ func TestErrorTranslationSuccess(t *testing.T) {
 
 	assert.Len(t, result.Errors, 1)
 	assert.Equal(t, "Tagline2 should be greater than 1", result.Errors[0])
+}
+
+type MockGet struct{}
+
+func (c MockGet) Get(key string) (value any, exists bool) {
+	if key == "User" {
+		return &auth.User{ID: "test", Name: "test", Email: "email@test.com"}, true
+	}
+
+	return nil, false
+}
+
+type MockGetNothing struct{}
+
+func (c MockGetNothing) Get(key string) (value any, exists bool) {
+	return nil, false
+}
+
+func TestGetUser(t *testing.T) {
+
+	handlers := new(Handlers)
+	user := handlers.GetUser(new(MockGet))
+
+	assert.Equal(t, "test", user.ID)
+	assert.Equal(t, "test", user.Name)
+	assert.Equal(t, "email@test.com", user.Email)
+}
+
+func TestGetUserEmail(t *testing.T) {
+	handlers := new(Handlers)
+	email := handlers.GetUserEmail(new(MockGet))
+
+	assert.Equal(t, "email@test.com", email)
+}
+
+func TestGetUserEmailEmpty1(t *testing.T) {
+	handlers := new(Handlers)
+	email := handlers.GetUserEmail(nil)
+
+	assert.Equal(t, "", email)
+}
+
+func TestGetUserEmailEmpty2(t *testing.T) {
+	handlers := new(Handlers)
+	email := handlers.GetUserEmail(new(MockGetNothing))
+
+	assert.Equal(t, "", email)
 }

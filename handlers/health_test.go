@@ -12,7 +12,7 @@ import (
 )
 
 func TestHealthSuccess(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, false)
 	handlers := &Handlers{DB: db}
 	r.GET("/health", handlers.GetHealth)
 
@@ -29,7 +29,7 @@ func TestHealthSuccess(t *testing.T) {
 }
 
 func TestHealthBadDB(t *testing.T) {
-	r, db := setup(true)
+	r, db := setup(true, false)
 	handlers := &Handlers{DB: db}
 	r.GET("/health", handlers.GetHealth)
 
