@@ -12,8 +12,8 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
-func validateUserToken(r *http.Request, authConfig *models.AuthConfiguration, jwks jwk.Set) (*User, error) {
-	token, err := verifyToken(r, authConfig, jwks)
+func validateUserToken(tokenString string, authConfig *models.AuthConfiguration, jwks jwk.Set) (*User, error) {
+	token, err := verifyToken(tokenString, authConfig, jwks)
 	if err != nil {
 		return nil, err
 	}
@@ -88,12 +88,7 @@ func getJwks(jwks jwk.Set, kid string) (*rsa.PublicKey, error) {
 	return publicKey, nil
 }
 
-func verifyToken(r *http.Request, config *models.AuthConfiguration, jwks jwk.Set) (*jwt.Token, error) {
-	tokenString, err := extractToken(r)
-	if err != nil {
-		return nil, err
-	}
-
+func verifyToken(tokenString string, config *models.AuthConfiguration, jwks jwk.Set) (*jwt.Token, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		kid, ok := token.Header["kid"].(string)
 		if !ok {

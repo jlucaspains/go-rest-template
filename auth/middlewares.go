@@ -28,7 +28,15 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
-		user, err := validateUserToken(c.Request, authConfig, cachedSet)
+		token, err := extractToken(c.Request)
+
+		if err != nil {
+			log.Printf("token check failed %v", err)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}})
+			return
+		}
+
+		user, err := validateUserToken(token, authConfig, cachedSet)
 
 		if err != nil {
 			log.Printf("token check failed %v", err)
