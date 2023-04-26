@@ -43,5 +43,5 @@ jobs:
         with:
           name: dist
           path: |
-            goapi-template.exe
+            goapi-template
             auth/*.rego
