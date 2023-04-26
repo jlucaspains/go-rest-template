@@ -28,7 +28,7 @@ jobs:
         run: go mod download
 
       - name: Build
-        run: go build
+        run: go build goapi-template
 
       - name: Test
         run: go test -cover ./... > test-result.txt
