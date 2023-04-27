@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "ms-azuretools.vscode-docker",
+    "golang.go",
+    "ms-kubernetes-tools.vscode-kubernetes-tools",
+    "tsandall.opa",
+    "ms-vscode-remote.remote-wsl"
+  ]
+}
