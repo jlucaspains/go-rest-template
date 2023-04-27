@@ -5,7 +5,7 @@ import future.keywords.if
 default allow = false
 
 allow if {
-	payload.email == "jlucaspains@gmail.com"
+	endswith(payload.email, "@gmail.com")
 	payload.verified
 	startswith(input.path, "/person/1")
 }
