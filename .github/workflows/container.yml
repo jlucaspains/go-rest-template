@@ -84,7 +84,7 @@ jobs:
 
   deploy_aks:
     if: false
-    needs: [build_image]
+    needs: [build_validate]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy
@@ -97,7 +97,7 @@ jobs:
   
   deploy_azurewebapp:
     if: github.event_name == 'push'
-    needs: [build_image]
+    needs: [build_validate]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy
