@@ -83,5 +83,5 @@ jobs:
              app-configmap.yaml
              app-deployment.yaml
              app-service.yaml
-          images: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ build_validate.steps.gitversion.outputs.majorMinorPatch }}'
+          images: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ jobs.build_validate.steps.gitversion.outputs.majorMinorPatch }}'
           pull-images: false
