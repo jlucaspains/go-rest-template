@@ -79,6 +79,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: dist
+          path: dist
 
       - name: Azure login
         id: login
@@ -89,7 +90,7 @@ jobs:
       - uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: .
+          package: ./dist
 
     # Azure logout 
       - name: logout
