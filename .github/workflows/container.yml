@@ -14,6 +14,8 @@ jobs:
   build_validate:
     # if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gitversion.outputs.majorMinorPatch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -86,5 +88,5 @@ jobs:
              app-configmap.yaml
              app-deployment.yaml
              app-service.yaml
-          images: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ jobs.build_validate.steps.gitversion.outputs.majorMinorPatch }}'
+          images: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ needs.build_validate.outputs.version }}'
           pull-images: false
