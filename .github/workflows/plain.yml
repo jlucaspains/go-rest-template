@@ -21,7 +21,7 @@ on:
 
 jobs:
   build_validate:
-    # if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.gitversion.outputs.majorMinorPatch }}
@@ -73,6 +73,8 @@ jobs:
     if: github.event_name == 'push'
     needs: [build_validate]
     runs-on: ubuntu-latest
+    env:
+      AZURE_WEBAPP_NAME: gorest-template
     steps:
       - uses: actions/download-artifact@v3
         with:
