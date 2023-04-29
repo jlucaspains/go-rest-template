@@ -1,0 +1,28 @@
+name: deploy-azurewebapp
+description: Deploys Azure Web App
+
+inputs:
+  azure_credentials:
+    description: Credentials to login to Azure
+    required: true
+  azure_webapp_name:
+    description: WebApp name
+    required: true
+  image_id:
+    description: Image name and tag to deploy
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+  - name: Azure login
+    id: login
+    uses: azure/login@v1.4.3
+    with:
+      creds: ${{ inputs.azure_credentials }}
+
+  - name: 'Deploy to Azure Web App for Container'
+    uses: azure/webapps-deploy@v2
+    with: 
+      app-name: ${{ inputs.azure_webapp_name }}
+      images: ${{ inputs.image_id }}

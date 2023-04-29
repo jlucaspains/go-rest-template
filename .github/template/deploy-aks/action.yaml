@@ -1,0 +1,53 @@
+name: deploy-aks
+description: Test
+
+inputs:
+  azure_credentials:
+    description: Credentials to login to Azure
+    required: true
+  azure_resource_group:
+    description: Resource Group name where AKS is deployed
+    required: true
+  azure_cluster_name:
+    description: AKS cluster name
+    required: true
+  image_id:
+    description: Image name and tag to deploy
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+  - name: Azure login
+    id: login
+    uses: azure/login@v1.4.3
+    with:
+      creds: ${{ inputs.azure_credentials }}
+
+  - name: Set AKS context
+    id: set-context
+    uses: azure/aks-set-context@v3
+    with:
+      resource-group: '${{ inputs.azure_resource_group }}' 
+      cluster-name: '${{ inputs.azure_cluster_name }}'
+
+  - name: Setup kubectl
+    id: install-kubectl
+    uses: azure/setup-kubectl@v3
+
+  - name: Deploy to AKS
+    id: deploy-aks
+    uses: Azure/k8s-deploy@v4
+    with:
+      namespace: 'default'
+      manifests: |
+          db-configmap.yaml
+          db-pvp.yaml
+          db-pv.yaml
+          db-deployment.yaml
+          db-service.yaml
+          app-configmap.yaml
+          app-deployment.yaml
+          app-service.yaml
+      images: '${{ inputs.image_id }}'
+      pull-images: false
