@@ -87,6 +87,11 @@ jobs:
     needs: [build_validate]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Deploy
         uses: "./.github/template/deploy-aks"
         with:
@@ -100,6 +105,11 @@ jobs:
     needs: [build_validate]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Deploy
         uses: "./.github/template/deploy-azurewebapp"
         with:
