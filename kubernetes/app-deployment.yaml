@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: web-app
-        image: goapi-template-app:latest
+        image: jlucaspains/gorest-template:latest
         imagePullPolicy: Never
         ports:
           - containerPort: 8000

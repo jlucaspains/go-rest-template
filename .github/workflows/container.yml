@@ -83,7 +83,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   deploy_aks:
-    if: false
+    if: github.event_name == 'push'
     needs: [build_validate]
     runs-on: ubuntu-latest
     steps:
@@ -95,13 +95,13 @@ jobs:
       - name: Deploy
         uses: "./.github/template/deploy-aks"
         with:
-          azure_credentials: '${{ secrets.AZURE_CREDENTIALS }}'
-          azure_resource_group: '${{ secrets.AZURE_RESOURCE_GROUP }}'
+          azure_credentials: '${{ secrets.AZURE_CREDENTIALS_FOR_AKS }}'
+          azure_resource_group: '${{ secrets.AZURE_RESOURCE_GROUP_FOR_AKS }}'
           azure_cluster_name: '${{ secrets.AZURE_CLUSTER_NAME }}'
           image_id: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ needs.build_validate.outputs.version }}'
   
   deploy_azurewebapp:
-    if: github.event_name == 'push'
+    if: false
     needs: [build_validate]
     runs-on: ubuntu-latest
     steps:

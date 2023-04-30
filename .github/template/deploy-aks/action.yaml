@@ -41,13 +41,13 @@ runs:
     with:
       namespace: 'default'
       manifests: |
-          db-configmap.yaml
-          db-pvp.yaml
-          db-pv.yaml
-          db-deployment.yaml
-          db-service.yaml
-          app-configmap.yaml
-          app-deployment.yaml
-          app-service.yaml
+          ./kubernetes/db-configmap.yaml
+          ./kubernetes/db-pvp.yaml
+          ./kubernetes/db-pv.yaml
+          ./kubernetes/db-deployment.yaml
+          ./kubernetes/db-service.yaml
+          ./kubernetes/app-configmap.yaml
+          ./kubernetes/app-deployment.yaml
+          ./kubernetes/app-service.yaml
       images: '${{ inputs.image_id }}'
       pull-images: false
