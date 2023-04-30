@@ -7,7 +7,7 @@ services:
       target: runner
     environment:
       ENV: "local"
-      PORT: ":8000"
+      WEB_PORT: ":8000"
       AUTH_CONFIG_URL: "${AUTH_CONFIG_URL}"
       AUTH_AUDIENCE: "${AUTH_AUDIENCE}"
       ENABLE_SWAGGER: true

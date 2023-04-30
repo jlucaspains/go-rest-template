@@ -38,7 +38,7 @@ Create a .env file in the root of the project with the following configs:
 
 ```env
 ENV=local
-PORT=localhost:8000
+WEB_PORT=localhost:8000
 AUTH_CONFIG_URL=https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0/.well-known/openid-configuration
 AUTH_AUDIENCE=api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api/
 ENABLE_SWAGGER=true

@@ -131,7 +131,7 @@ func main() {
 
 	router := setupRouter(db)
 
-	port, ok := os.LookupEnv("PORT")
+	port, ok := os.LookupEnv("WEB_PORT")
 	if !ok {
 		port = "localhost:8000"
 	}
