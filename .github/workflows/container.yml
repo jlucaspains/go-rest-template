@@ -111,7 +111,7 @@ jobs:
           fetch-depth: 0
 
       - name: Deploy
-        uses: "./.github/template/deploy-azurewebapp"
+        uses: "./.github/template/deploy-azwebapp"
         with:
           azure_credentials: '${{ secrets.AZURE_CREDENTIALS }}'
           azure_webapp_name: '${{ secrets.AZURE_WEBAPP_NAME }}'
