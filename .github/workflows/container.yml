@@ -116,3 +116,7 @@ jobs:
           azure_credentials: '${{ secrets.AZURE_CREDENTIALS }}'
           azure_webapp_name: '${{ secrets.AZURE_WEBAPP_NAME }}'
           image_id: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ needs.build_validate.outputs.version }}'
+          auth_config_url: '${{ secrets.AZURE_WEBAPP_NAME }}'
+          auth_audience: '${{ secrets.AZURE_WEBAPP_NAME }}'
+          db_connection_string: '${{ secrets.AZURE_WEBAPP_NAME }}'
+          db_provider: '${{ secrets.AZURE_WEBAPP_NAME }}'

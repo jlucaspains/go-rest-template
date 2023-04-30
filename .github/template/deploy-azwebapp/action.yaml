@@ -11,6 +11,36 @@ inputs:
   image_id:
     description: Image name and tag to deploy
     required: true
+  web_port:
+    description: Port to run the web server on
+    default: ":8080"
+  auth_config_url:
+    description: Open ID configuration URL
+    required: true
+  auth_audience:
+    description: Valid audience for this API
+    required: true
+  auth_claims:
+    description: Auth claims to expose to handlers
+    default: "given_name,family_name"
+  enable_swagger:
+    description: True to enable swagger pages. This is not recommended for PROD environments.
+    default: "false"
+  db_connection_string:
+    description: Connection string for the DB. Connection string format depends on db_provider parameter.
+    required: true
+  db_provider:
+    description: postgres or sqlite.
+    required: true
+  gin_mode:
+    description: release or debug. debug is not recommended but provides additional logging.
+    default: "release"
+  gin_trusted_proxies:
+    description: Trusted proxies for gin
+    default: "nil"
+  allowed_origin:
+    description: CORS allowed origins
+    default: "*"
 
 runs:
   using: "composite"
@@ -20,6 +50,64 @@ runs:
     uses: azure/login@v1.4.3
     with:
       creds: ${{ inputs.azure_credentials }}
+
+  - name: Set Web App ACR authentication
+    uses: Azure/appservice-settings@v1
+    with:
+      app-name: '${{ inputs.azure_webapp_name }}'
+      app-settings-json: |
+        [
+            {
+                "name": "WEB_PORT",
+                "value": "${{ inputs.web_port }}",
+                "slotSetting": false
+            },
+            {
+                "name": "AUTH_CONFIG_URL",
+                "value": "${{ inputs.auth_config_url }}",
+                "slotSetting": false
+            },
+            {
+                "name": "AUTH_AUDIENCE",
+                "value": "${{ inputs.auth_audience }}",
+                "slotSetting": false
+            },
+            {
+                "name": "AUTH_CLAIMS",
+                "value": "${{ inputs.auth_claims }}",
+                "slotSetting": false
+            },
+            {
+                "name": "ENABLE_SWAGGER",
+                "value": "${{ inputs.enable_swagger }}",
+                "slotSetting": false
+            },
+            {
+                "name": "DB_CONNECTION_STRING",
+                "value": "${{ inputs.db_connection_string }}",
+                "slotSetting": false
+            },
+            {
+                "name": "DB_PROVIDER",
+                "value": "${{ inputs.db_provider }}",
+                "slotSetting": false
+            },
+            {
+                "name": "GIN_MODE",
+                "value": "${{ inputs.gin_mode }}",
+                "slotSetting": false
+            },
+            {
+                "name": "GIN_TRUSTED_PROXIES",
+                "value": "${{ inputs.gin_trusted_proxies }}",
+                "slotSetting": false
+            },
+            {
+                "name": "ALLOWED_ORIGIN",
+                "value": "${{ inputs.allowed_origin }}",
+                "slotSetting": false
+            }
+        ]
 
   - name: 'Deploy to Azure Web App for Container'
     uses: azure/webapps-deploy@v2
