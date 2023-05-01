@@ -14,6 +14,24 @@ inputs:
   image_id:
     description: Image name and tag to deploy
     required: true
+  auth_config_url:
+    description: Open ID configuration URL
+    required: true
+  auth_audience:
+    description: Valid audience for this API
+    required: true
+  db_connection_string:
+    description: Connection string for the DB. Connection string format depends on db_provider parameter.
+    required: true
+  postgres_db:
+    description: Postgres DB name.
+    required: true
+  postgres_user:
+    description: Postgres DB user.
+    required: true
+  postgres_password:
+    description: Postgres DB user password.
+    required: true
 
 runs:
   using: "composite"
@@ -34,6 +52,20 @@ runs:
   - name: Setup kubectl
     id: install-kubectl
     uses: azure/setup-kubectl@v3
+  
+  - uses: azure/k8s-create-secret@v2
+    with:
+      namespace: 'default'
+      secret-type: 'generic'
+      secret-name: app-secrets
+      string-data: '{"AUTH_CONFIG_URL": "${{ inputs.auth_config_url }}", "AUTH_AUDIENCE": "${{ inputs.auth_audience }}", "DB_CONNECTION_STRING": "${{ inputs.db_connection_string }}"}'
+
+  - uses: azure/k8s-create-secret@v2
+    with:
+      namespace: 'default'
+      secret-type: 'generic'
+      secret-name: db-secrets
+      string-data: '{"POSTGRES_DB": "${{ inputs.postgres_db }}", "POSTGRES_USER": "${{ inputs.postgres_user }}", "POSTGRES_PASSWORD": "${{ inputs.postgres_password }}"}'
 
   - name: Deploy to AKS
     id: deploy-aks
@@ -41,7 +73,6 @@ runs:
     with:
       namespace: 'default'
       manifests: |
-          ./kubernetes/db-configmap.yaml
           ./kubernetes/db-pvp.yaml
           ./kubernetes/db-pv.yaml
           ./kubernetes/db-deployment.yaml
@@ -50,4 +81,3 @@ runs:
           ./kubernetes/app-deployment.yaml
           ./kubernetes/app-service.yaml
       images: '${{ inputs.image_id }}'
-      pull-images: false

@@ -109,7 +109,7 @@ You may use minikube locally to test kubernetes configuration.
 kubectl create secret generic prod-db-secret --from-literal=username=produser --from-literal=password=Y4nys7f11
 
 
-kubectl apply -f .\db-configmap.yaml
+kubectl apply -f .\db-configmap.yaml # need to create manually like above
 kubectl apply -f .\db-pvp.yaml
 kubectl apply -f .\db-pv.yaml
 kubectl apply -f .\db-deployment.yaml

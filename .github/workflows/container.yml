@@ -99,7 +99,13 @@ jobs:
           azure_resource_group: '${{ secrets.AZURE_RESOURCE_GROUP_FOR_AKS }}'
           azure_cluster_name: '${{ secrets.AZURE_CLUSTER_NAME }}'
           image_id: '${{ secrets.DOCKERHUB_USERNAME }}/gorest-template:${{ needs.build_validate.outputs.version }}'
-  
+          auth_config_url: '${{ secrets.AUTH_CONFIG_URL }}'
+          auth_audience: '${{ secrets.AUTH_AUDIENCE }}'
+          db_connection_string: '${{ secrets.DB_CONNECTION_STRING }}'
+          postgres_db: '${{ secrets.POSTGRES_DB }}'
+          postgres_user: '${{ secrets.POSTGRES_USER }}'
+          postgres_password: '${{ secrets.POSTGRES_PASSWORD }}'
+          
   deploy_azurewebapp:
     if: false
     needs: [build_validate]
