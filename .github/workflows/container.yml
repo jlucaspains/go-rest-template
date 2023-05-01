@@ -33,6 +33,13 @@ jobs:
 
       - name: Pull dependencies
         run: go mod download
+      
+      - uses: reviewdog/action-staticcheck@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review
+          filter_mode: nofilter
+          fail_on_error: true
 
       - name: Test
         run: go test -cover ./... > test-result.txt
@@ -107,7 +114,7 @@ jobs:
           postgres_password: '${{ secrets.POSTGRES_PASSWORD }}'
           
   deploy_azurewebapp:
-    if: false
+    if: github.event_name == 'push'
     needs: [build_validate]
     runs-on: ubuntu-latest
     steps:

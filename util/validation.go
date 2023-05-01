@@ -35,3 +35,7 @@ func getValidationErrorMsg(fe validator.FieldError) string {
 	}
 	return "Unknown error"
 }
+
+func unused() {
+
+}
