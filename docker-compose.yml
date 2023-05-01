@@ -10,8 +10,12 @@ services:
       WEB_PORT: ":8000"
       AUTH_CONFIG_URL: "${AUTH_CONFIG_URL}"
       AUTH_AUDIENCE: "${AUTH_AUDIENCE}"
-      ENABLE_SWAGGER: true
+      AUTH_CLAIMS: "given_name,family_name"
       DB_CONNECTION_STRING: "host=db user=postgres password=${POSTGRES_PASSWORD} dbname=goapitemplate port=5432"
+      ENABLE_SWAGGER: true
+      GIN_MODE: "release"
+      GIN_TRUSTED_PROXIES: "nil"
+      ALLOWED_ORIGIN: "*"
     ports:
       - "8000:8000"
     depends_on:
