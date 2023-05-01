@@ -108,6 +108,7 @@ You may use minikube locally to test kubernetes configuration.
 ```powershell
 kubectl create secret generic prod-db-secret --from-literal=username=produser --from-literal=password=Y4nys7f11
 
+
 kubectl apply -f .\db-configmap.yaml
 kubectl apply -f .\db-pvp.yaml
 kubectl apply -f .\db-pv.yaml
@@ -116,6 +117,13 @@ kubectl apply -f .\db-service.yaml
 kubectl apply -f .\app-configmap.yaml
 kubectl apply -f .\app-deployment.yaml
 kubectl apply -f .\app-service.yaml
+```
+
+#### Azure
+```bash
+az ad sp create-for-rbac --name lpains_github_sp \
+                         --role contributor \
+                         --scopes /subscriptions/4ead1c66-a55e-4cd7-babf-2e23ad5a6f39
 ```
 
 ## Authentication

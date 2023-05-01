@@ -1,5 +1,5 @@
 apiVersion: apps/v1 
-kind: Deployment  # K8s Deployment
+kind: Deployment
 metadata:
   name: web-app
   labels:
@@ -19,7 +19,7 @@ spec:
       containers:
       - name: web-app
         image: jlucaspains/gorest-template:latest
-        imagePullPolicy: Never
+        # imagePullPolicy: Never
         ports:
           - containerPort: 8000
         livenessProbe:          
@@ -40,6 +40,6 @@ spec:
           limits:
             cpu: "200m"
             memory: "256Mi"
-      imagePullSecrets:
-        - name: regcred
+      # imagePullSecrets:
+      #   - name: regcred
       restartPolicy: Always
