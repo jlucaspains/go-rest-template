@@ -28,7 +28,7 @@ This is a template repository so you can create a new repository based on this o
 ## Getting started Locally
 You should use the latest version available of Go. The current version used by this repository is 1.20.
 
-### Install deps
+### Install Go dependencies
 ```cmd
 go mod download
 ```
@@ -47,7 +47,7 @@ ENABLE_SWAGGER=true
 DB_PROVIDER=postgres
 DB_CONNECTION_STRING=host=localhost user=postgres password=mysecretpassword dbname=goapitemplate port=5432 sslmode=disable TimeZone=America/Denver
 ```
-If you'd rather run with sqlite change `DB_PROVIDER` and `DB_CONNECTION_STRING`:
+By default, the template uses Postres and thus you need it installed locally or available elsewhere. If you'd rather run with sqlite, change `DB_PROVIDER` and `DB_CONNECTION_STRING`:
 
 ```env
 DB_PROVIDER=sqlite
@@ -56,7 +56,6 @@ DB_CONNECTION_STRING=mydb.db
 
 ### Run
 ```powershell
-cd go-rest-template
 go run .\main.go
 ```
 
@@ -76,8 +75,9 @@ go tool cover -html=coverage
 
 ### Build
 ```powershell
-go build -o ./go-rest-template ./main.go
+go build
 ```
+In Windows, the command above yields a executable file `go-rest-template.exe`. In Linux, it yields an executable of same name but without extension.
 
 ## Deploy
 ### Docker
@@ -114,17 +114,17 @@ kubectl create secret generic app-secrets --from-literal=AUTH_CONFIG_URL=<url> -
 
 kubectl create secret generic db-secrets --from-literal=POSTGRES_DB=<db name> --from-literal=POSTGRES_USER=<db user> --from-literal=POSTGRES_PASSWORD=<password>
 
-kubectl apply -f .\db-pvp.yaml
-kubectl apply -f .\db-pv.yaml
-kubectl apply -f .\db-deployment.yaml
-kubectl apply -f .\db-service.yaml
-kubectl apply -f .\app-configmap.yaml
-kubectl apply -f .\app-deployment.yaml
-kubectl apply -f .\app-service.yaml
+kubectl apply -f ./db-pvp.yaml
+kubectl apply -f ./db-pv.yaml
+kubectl apply -f ./db-deployment.yaml
+kubectl apply -f ./db-service.yaml
+kubectl apply -f ./app-configmap.yaml
+kubectl apply -f ./app-deployment.yaml
+kubectl apply -f ./app-service.yaml
 ```
 
 ## Authentication
-On startup, the application will automatically load the authentication configuration from the `AUTH_CONFIG_URL` configuration variable. This variable should be a `.well-known/openid-configuration` endpoint which is typically provided by OAuth2 or OpenId providers such as:
+On startup, the application will execute an HTTP GET over the URL stored in `AUTH_CONFIG_URL` configuration. This variable should be a `.well-known/openid-configuration` endpoint which is typically provided by OAuth2 or OpenId providers such as:
 
 |Provider|URL|Notes|
 |-|-|-|
@@ -132,9 +132,11 @@ On startup, the application will automatically load the authentication configura
 |Google|https://accounts.google.com/.well-known/openid-configuration||
 |Facebook|https://www.facebook.com/.well-known/openid-configuration/||
 
-The application will automatically pull the issuer, jwks, and token signing algorithm. These fields are used to validate the JWT token. The jwks is also monitored for changes and is updated as needed. 
+The startup will automatically pull the issuer, jwks, and token signing algorithm. These fields are used to validate the JWT token. The jwks is also monitored for changes and is updated as needed. 
 
-Additionally, the JWT is validated against the configured `AUTH_AUDIENCE` so only tokens intended for this API are accepted. The `AUTH_CLAIMS` field is used in order to add information to the provided User interface so the app is aware of information such as user name, email, etc.
+Additionally, the JWT is validated against the configured `AUTH_AUDIENCE` so only tokens intended for this API are accepted. The `AUTH_CLAIMS` configuration is used in order to lookup and add claims from the JWT body to the provided User interface so the app is aware of information such as user name, email, etc.
+
+The authentication middleware will validate the JWT against the parameters set and allow (or not) the API pipeline to proceed. Any additional validation should be executed by the Authorization layer.
 
 ## Authorization
 Authorization is provided via OPA policy with input fields method, path, and token. You may modify the `OpaMiddleware` to add more fields as necessary. The following basic policy is provided:
@@ -160,6 +162,8 @@ payload := {"verified": verified, "email": payload.email} if {
 Note that the token input field is the full JWT provided by the consumer. You may decode it and use any of the provided fields such as Role, name, email, etc to validate whether the call is authorized or not.
 
 The above basic policy enforces that the URL path must start with `/person` and the user email must end with `@gmail.com`. This is obviously just to get the authorization started and should be modified before using this template. For more information on OPA, please see https://www.openpolicyagent.org/.
+
+The `OpaMiddleware` is a combined local PEP (Policy Enforcement Point) and PDP (Policy Decision Point). As such, any time your policy changes, you need a code change as the policy is stored locally, and a release. As your needs outgrow this approach, you should look into introducing a centralized PDP, adding a PIP (Policy Information Point) to enrich the policy inputs, and PAP (Policy Administration point) to create or modify policies without the need for a release.
 
 ## CI/CD
 By default, this repository includes a single GitHub Actions workflow with 3 jobs that will:
