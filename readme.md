@@ -103,7 +103,7 @@ export POSTGRES_PASSWORD="mysecretpassword"
 
 Then, run docker compose:
 ```powershell
-docker compose up
+docker compose up -d
 ```
 
 ### Kubernetes
@@ -114,7 +114,7 @@ kubectl create secret generic app-secrets --from-literal=AUTH_CONFIG_URL=<url> -
 
 kubectl create secret generic db-secrets --from-literal=POSTGRES_DB=<db name> --from-literal=POSTGRES_USER=<db user> --from-literal=POSTGRES_PASSWORD=<password>
 
-kubectl apply -f ./db-pvp.yaml
+kubectl apply -f ./db-pvc.yaml
 kubectl apply -f ./db-pv.yaml
 kubectl apply -f ./db-deployment.yaml
 kubectl apply -f ./db-service.yaml

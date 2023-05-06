@@ -73,7 +73,7 @@ runs:
     with:
       namespace: 'default'
       manifests: |
-          ./kubernetes/db-pvp.yaml
+          ./kubernetes/db-pvc.yaml
           ./kubernetes/db-pv.yaml
           ./kubernetes/db-deployment.yaml
           ./kubernetes/db-service.yaml
