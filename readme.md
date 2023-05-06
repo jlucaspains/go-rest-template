@@ -103,7 +103,7 @@ export POSTGRES_PASSWORD="mysecretpassword"
 
 Then, run docker compose:
 ```powershell
-docker compose up
+docker compose up -d
 ```
 
 ### Kubernetes
