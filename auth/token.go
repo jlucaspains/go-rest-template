@@ -1,18 +1,21 @@
 package auth
 
 import (
-	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"goapi-template/models"
+	"goapi-template/util"
 	"net/http"
 	"strings"
 
-	"github.com/golang-jwt/jwt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
-func validateUserToken(tokenString string, authConfig *models.AuthConfiguration, jwks jwk.Set) (*User, error) {
+type JKWS interface {
+	Keyfunc(token *jwt.Token) (interface{}, error)
+}
+
+func validateUserToken(tokenString string, authConfig *models.AuthConfiguration, jwks JKWS) (*User, error) {
 	token, err := verifyToken(tokenString, authConfig, jwks)
 	if err != nil {
 		return nil, err
@@ -23,8 +26,15 @@ func validateUserToken(tokenString string, authConfig *models.AuthConfiguration,
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	if claims.VerifyAudience(authConfig.Audience, true) {
+	if claims["aud"].(string) != authConfig.Audience {
 		return nil, fmt.Errorf("token not issue to correct audience")
+	}
+
+	scope := claims[authConfig.ScopeClaim].(string)
+
+	scopeIsValid := len(authConfig.Scopes) == 0 || util.Contains(authConfig.Scopes, scope)
+	if !scopeIsValid {
+		return nil, fmt.Errorf("token doesn't have valid scopes")
 	}
 
 	user := &User{
@@ -73,51 +83,16 @@ func extractToken(r *http.Request) (string, error) {
 	return strArr[1], nil
 }
 
-func getJwks(jwks jwk.Set, kid string) (*rsa.PublicKey, error) {
-	key, ok := jwks.LookupKeyID(kid)
-	if !ok {
-		return nil, fmt.Errorf("key %v not found", kid)
-	}
-
-	publicKey := &rsa.PublicKey{}
-	err := key.Raw(publicKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse pubkey")
-	}
-
-	return publicKey, nil
-}
-
-func verifyToken(tokenString string, config *models.AuthConfiguration, jwks jwk.Set) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		kid, ok := token.Header["kid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("kid header not found")
-		}
-
-		algIsValid := false
-		for _, v := range config.TokenSigningAlg {
-			algIsValid = v.(string) == token.Method.Alg()
-
-			if algIsValid {
-				break
-			}
-		}
-
-		if !algIsValid {
-			return nil, fmt.Errorf("token signature alg and issuer alg do not match")
-		}
-
-		jwks, err := getJwks(jwks, kid)
-		if err != nil {
-			return nil, err
-		}
-
-		return jwks, nil
-	})
+func verifyToken(tokenString string, config *models.AuthConfiguration, jwks JKWS) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, jwks.Keyfunc)
 
 	if err != nil {
 		return nil, err
+	}
+
+	algIsValid := util.Contains(config.TokenSigningAlg, token.Method.Alg())
+	if !algIsValid {
+		return nil, fmt.Errorf("token signature alg and issuer alg do not match")
 	}
 
 	return token, nil

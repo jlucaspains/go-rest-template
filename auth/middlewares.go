@@ -9,18 +9,18 @@ import (
 	"strings"
 	"time"
 
+	keyfunc "github.com/MicahParks/keyfunc/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/open-policy-agent/opa/rego"
 )
 
 var authConfig *models.AuthConfiguration
 var opaQuery *rego.PreparedEvalQuery
-var cachedSet jwk.Set
+var cachedSet JKWS
 
 func Init() {
 	authConfig = loadConfig()
-	opaQuery = loadOpaQuery()
+	opaQuery = loadOpaQuery("./auth/authz.rego")
 	cachedSet = loadJWKSCache()
 }
 
@@ -63,7 +63,7 @@ func OpaMiddleware() gin.HandlerFunc {
 			"path":   c.Request.RequestURI,
 			"token":  token,
 		}
-		res, err := opaQuery.Eval(context.TODO(), rego.EvalInput(input))
+		res, err := opaQuery.Eval(c.Request.Context(), rego.EvalInput(input))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, err)
 			c.Abort()
@@ -96,6 +96,16 @@ func loadConfig() *models.AuthConfiguration {
 
 	config.Audience = os.Getenv("AUTH_AUDIENCE")
 
+	scopeClaim, ok := os.LookupEnv("AUTH_SCOPE_CLAIM")
+	if !ok {
+		scopeClaim = "scp"
+	}
+	config.ScopeClaim = scopeClaim
+
+	if scopes, ok := os.LookupEnv("AUTH_SCOPES"); ok {
+		config.Scopes = strings.Split(scopes, ",")
+	}
+
 	if authClaims, ok := os.LookupEnv("AUTH_CLAIMS"); ok {
 		config.ClaimFields = strings.Split(authClaims, ",")
 	}
@@ -103,8 +113,8 @@ func loadConfig() *models.AuthConfiguration {
 	return config
 }
 
-func loadOpaQuery() *rego.PreparedEvalQuery {
-	query, err := rego.New(rego.Query("data.authz.allow"), rego.Load([]string{"./auth/authz.rego"}, nil)).PrepareForEval(context.TODO())
+func loadOpaQuery(regoPath string) *rego.PreparedEvalQuery {
+	query, err := rego.New(rego.Query("data.authz.allow"), rego.Load([]string{regoPath}, nil)).PrepareForEval(context.TODO())
 	if err != nil {
 		log.Fatalf("failed to create rego query. Error: %v", err)
 	}
@@ -112,16 +122,19 @@ func loadOpaQuery() *rego.PreparedEvalQuery {
 	return &query
 }
 
-func loadJWKSCache() jwk.Set {
-	ctx := context.Background()
-	uri := authConfig.JWKSUri
-
-	c := jwk.NewCache(ctx)
-	c.Register(uri, jwk.WithMinRefreshInterval(60*time.Minute))
-	_, err := c.Refresh(ctx, uri)
-	if err != nil {
-		log.Fatalf("Failed to load JWKS. Error: %v", err)
+func loadJWKSCache() *keyfunc.JWKS {
+	options := keyfunc.Options{
+		RefreshInterval: time.Hour,
+		RefreshTimeout:  time.Second * 10,
+		RefreshErrorHandler: func(err error) {
+			log.Printf("There was an error with the jwt.Keyfunc\nError: %s", err.Error())
+		},
 	}
 
-	return jwk.NewCachedSet(c, uri)
+	jwks, err := keyfunc.Get(authConfig.JWKSUri, options)
+	if err != nil {
+		log.Fatalf("Failed to create JWKS from resource at the given URL.\nError: %s", err.Error())
+	}
+
+	return jwks
 }
