@@ -18,7 +18,7 @@ func Init(provider string, connectionString string, migrate bool) (*gorm.DB, err
 		dialector = sqlite.Open(connectionString)
 	}
 
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{TranslateError: true})
 
 	if err != nil {
 		return nil, err
