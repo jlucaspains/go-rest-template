@@ -26,11 +26,16 @@ func (h Handlers) ErrorToHttpResult(err error) (int, *models.ErrorResult) {
 		return http.StatusBadRequest, &models.ErrorResult{Errors: out}
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
 		return http.StatusNotFound, &models.ErrorResult{Errors: []string{"Record not found"}}
+	} else if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return http.StatusConflict, &models.ErrorResult{Errors: []string{"Record duplication detected"}}
 	} else if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		// With gorm error translation, most providers will translate
+		// unique key errors automatically. The SQLite provider used for
+		// testing will not though. This workaround is primarily help unit tests.
 		return http.StatusConflict, &models.ErrorResult{Errors: []string{"Record duplication detected"}}
 	}
 
-	return http.StatusInternalServerError, &models.ErrorResult{Errors: []string{"Invalid request body"}}
+	return http.StatusInternalServerError, &models.ErrorResult{Errors: []string{"Unknown error"}}
 }
 
 func (h Handlers) GetUser(c HaveGet) *auth.User {
