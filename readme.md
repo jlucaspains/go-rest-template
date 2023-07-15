@@ -177,3 +177,10 @@ By default, this repository includes a single GitHub Actions workflow with 3 job
    1. You may want to change this step and push to a private repository
 6. Deploy to Azure Kubernetes Service
 7. Deploy to Azure Web App
+
+## General recommendations
+Before you push a similar solution to a production environment, keep the following recommendations in mind:
+
+1. Kubernetes secrets are not really secret. If possible, you should leverage a secrets platform such as Azure Key Vault.
+2. Favor managed database solutions instead of container based solution. Remember that if you do database in a container, you will need to take care of backups and other reliability related features that are typically available in managed solutions available in cloud platforms such as AWS and Azure.
+3. Avoid using the latest tag for releases. If a pod goes down and comes back up, it might use a different version of the image than the other containers of the same type.
