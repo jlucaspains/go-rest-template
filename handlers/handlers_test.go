@@ -41,28 +41,12 @@ func TestErrorTranslationSuccess(t *testing.T) {
 	assert.Equal(t, "Tagline2 should be greater than 1", result.Errors[0])
 }
 
-type MockGet struct{}
-
-func (c MockGet) Get(key string) (value any, exists bool) {
-	if key == "User" {
-		return &auth.User{ID: "test", Name: "test", Email: "email@test.com"}, true
-	}
-
-	return nil, false
-}
-
-type MockGetNothing struct{}
-
-func (c MockGetNothing) Get(key string) (value any, exists bool) {
-	return nil, false
-}
-
 func TestGetUser(t *testing.T) {
 
 	handlers := new(Handlers)
 	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
 	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
-	newReq := req.WithContext(context.WithValue(req.Context(), "User", body))
+	newReq := req.WithContext(context.WithValue(req.Context(), auth.UserKey, body))
 
 	user := handlers.GetUser(newReq)
 
@@ -75,7 +59,7 @@ func TestGetUserEmail(t *testing.T) {
 	handlers := new(Handlers)
 	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
 	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
-	newReq := req.WithContext(context.WithValue(req.Context(), "User", body))
+	newReq := req.WithContext(context.WithValue(req.Context(), auth.UserKey, body))
 
 	email := handlers.GetUserEmail(newReq)
 
@@ -131,7 +115,7 @@ func setup(migrate bool, useAuthMiddleware bool) (*mux.Router, *gorm.DB) {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
 				user := &auth.User{ID: "Test", Name: "Test", Email: "mail@test.com"}
-				req := r.WithContext(context.WithValue(ctx, "User", user))
+				req := r.WithContext(context.WithValue(ctx, auth.UserKey, user))
 				next.ServeHTTP(w, req)
 			})
 		}

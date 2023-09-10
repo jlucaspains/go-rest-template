@@ -42,7 +42,7 @@ func (h Handlers) GetUser(r *http.Request) *auth.User {
 		return nil
 	}
 
-	if user := r.Context().Value("User"); user != nil {
+	if user := r.Context().Value(auth.UserKey); user != nil {
 		return user.(*auth.User)
 	}
 

@@ -25,22 +25,9 @@ func Init() {
 	cachedSet = loadJWKSCache()
 }
 
-// func (m *LogMiddleware) Func() mux.MiddlewareFunc {
-// 	return func(next http.Handler) http.Handler {
-// 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 			startTime := time.Now()
+type key int
 
-// 			logRespWriter := NewLogResponseWriter(w)
-// 			next.ServeHTTP(logRespWriter, r)
-
-// 			m.logger.Printf(
-// 				"url=%s duration=%s status=%d",
-// 				r.URL.String(),
-// 				time.Since(startTime).String(),
-// 				logRespWriter.statusCode)
-// 		})
-// 	}
-// }
+const UserKey key = 1
 
 func TokenAuthMiddleware() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
@@ -71,7 +58,7 @@ func TokenAuthMiddleware() mux.MiddlewareFunc {
 				return
 			}
 
-			newReq := r.WithContext(context.WithValue(r.Context(), "User", user))
+			newReq := r.WithContext(context.WithValue(r.Context(), UserKey, user))
 
 			elapsed := time.Since(start)
 			log.Printf("Auth Middleware took %v", elapsed)
