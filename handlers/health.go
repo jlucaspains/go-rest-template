@@ -3,8 +3,6 @@ package handlers
 import (
 	"goapi-template/models"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 // GetHealth godoc
@@ -17,7 +15,7 @@ import (
 //	@Success		200	{object}	models.HealthResult
 //	@Failure		400	{object}	models.HealthResult
 //	@Router			/health [get]
-func (h Handlers) GetHealth(c *gin.Context) {
+func (h Handlers) GetHealth(w http.ResponseWriter, r *http.Request) {
 	isDbHealthy := true
 	localDB, err := h.DB.DB()
 	if err != nil {
@@ -26,10 +24,12 @@ func (h Handlers) GetHealth(c *gin.Context) {
 
 	isDbHealthy = localDB.Ping() == nil
 	dbHealth := models.HealthResultItem{Name: "DB", Healthy: isDbHealthy}
+	result := &models.HealthResult{Healthy: isDbHealthy, Dependencies: []models.HealthResultItem{dbHealth}}
 
-	if isDbHealthy {
-		c.JSON(http.StatusOK, &models.HealthResult{Healthy: isDbHealthy, Dependencies: []models.HealthResultItem{dbHealth}})
-	} else {
-		c.JSON(http.StatusInternalServerError, &models.HealthResult{Healthy: isDbHealthy, Dependencies: []models.HealthResultItem{dbHealth}})
+	status := http.StatusOK
+	if !isDbHealthy {
+		status = http.StatusInternalServerError
 	}
+
+	h.JSON(w, status, result)
 }

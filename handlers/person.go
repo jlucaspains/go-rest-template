@@ -5,8 +5,6 @@ import (
 	"strconv"
 
 	"goapi-template/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // GetPerson godoc
@@ -22,20 +20,21 @@ import (
 //	@Success		200				{object}	models.Person
 //	@Failure		400				{object}	models.ErrorResult
 //	@Router			/person/{id}	[get]
-func (h Handlers) GetPerson(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+func (h Handlers) GetPerson(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(h.Param(r, "id"), 10, 32)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
+		h.JSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
 		return
 	}
 
 	body := models.Person{}
 	if result := h.DB.First(&body, id); result.Error != nil {
-		c.AbortWithStatusJSON(h.ErrorToHttpResult(result.Error))
+		status, body := h.ErrorToHttpResult(result.Error)
+		h.JSON(w, status, body)
 		return
 	}
 
-	c.JSON(http.StatusOK, body)
+	h.JSON(w, http.StatusOK, body)
 }
 
 // AddAccount godoc
@@ -52,22 +51,24 @@ func (h Handlers) GetPerson(c *gin.Context) {
 //	@Success		202		{object}	models.Person
 //	@Failure		400		{object}	[]string
 //	@Router			/person [post]
-func (h Handlers) PostPerson(c *gin.Context) {
-	body := models.Person{}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
+func (h Handlers) PostPerson(w http.ResponseWriter, r *http.Request) {
+	body := &models.Person{}
+	if err := h.BindJSON(r, body); err != nil {
+		status, body := h.ErrorToHttpResult(err)
+		h.JSON(w, status, body)
 		return
 	}
 
 	body.ID = 0 // ensure we leverage auto increment
-	body.UpdateUser = h.GetUserEmail(c)
+	body.UpdateUser = h.GetUserEmail(r)
 
 	if result := h.DB.Create(&body); result.Error != nil {
-		c.AbortWithStatusJSON(h.ErrorToHttpResult(result.Error))
+		status, body := h.ErrorToHttpResult(result.Error)
+		h.JSON(w, status, body)
 		return
 	}
 
-	c.JSON(http.StatusAccepted, &models.IdResult{ID: body.ID})
+	h.JSON(w, http.StatusAccepted, &models.IdResult{ID: body.ID})
 }
 
 // PutPerson godoc
@@ -85,32 +86,34 @@ func (h Handlers) PostPerson(c *gin.Context) {
 //	@Success		202		{object}	models.Person
 //	@Failure		400		{object}	models.ErrorResult
 //	@Router			/person/{id} [put]
-func (h Handlers) PutPerson(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(h.Param(r, "id"), 10, 32)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
+		h.JSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
 		return
 	}
-	body := models.Person{}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
+	body := &models.Person{}
+	if err := h.BindJSON(r, body); err != nil {
+		status, err := h.ErrorToHttpResult(err)
+		h.JSON(w, status, err)
 		return
 	}
 
-	body.UpdateUser = h.GetUserEmail(c)
+	body.UpdateUser = h.GetUserEmail(r)
 
 	result := h.DB.Model(&models.Person{ID: int(id)}).Updates(&body)
 	if result.Error != nil {
-		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
+		status, err := h.ErrorToHttpResult(err)
+		h.JSON(w, status, err)
 		return
 	}
 
 	if result.RowsAffected == 0 {
-		c.AbortWithStatus(http.StatusNotFound)
+		h.Status(w, http.StatusNotFound)
 		return
 	}
 
-	c.Status(http.StatusAccepted)
+	h.Status(w, http.StatusAccepted)
 }
 
 // DeletePerson godoc
@@ -125,24 +128,25 @@ func (h Handlers) PutPerson(c *gin.Context) {
 //	@Success		202
 //	@Failure		400	{object}	models.ErrorResult
 //	@Router			/person/{id} [delete]
-func (h Handlers) DeletePerson(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+func (h Handlers) DeletePerson(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(h.Param(r, "id"), 10, 32)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
+		h.JSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
 		return
 	}
 
 	result := h.DB.Delete(&models.Person{}, id)
 
 	if result.Error != nil {
-		c.AbortWithStatusJSON(h.ErrorToHttpResult(err))
+		status, err := h.ErrorToHttpResult(err)
+		h.JSON(w, status, err)
 		return
 	}
 
 	if result.RowsAffected == 0 {
-		c.AbortWithStatus(http.StatusNotFound)
+		h.Status(w, http.StatusNotFound)
 		return
 	}
 
-	c.Status(http.StatusAccepted)
+	h.Status(w, http.StatusAccepted)
 }

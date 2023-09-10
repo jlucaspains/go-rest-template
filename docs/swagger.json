@@ -270,6 +270,9 @@
                     "maxLength": 100,
                     "minLength": 3
                 },
+                "update_user": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 }

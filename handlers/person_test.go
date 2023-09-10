@@ -3,66 +3,36 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"goapi-template/auth"
-	"goapi-template/db"
 	"goapi-template/models"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
-
-func setup(migrate bool, useAuthMiddleware bool) (*gin.Engine, *gorm.DB) {
-	router := gin.Default()
-	godotenv.Load("../.testing.env")
-	db, err := db.Init("sqlite", ":memory:", migrate)
-
-	if err != nil {
-		panic(err)
-	}
-
-	if useAuthMiddleware {
-		authMiddleware := func(c *gin.Context) {
-			c.Set("User", &auth.User{ID: "Test", Name: "Test", Email: "mail@test.com"})
-			c.Next()
-		}
-		router.Use(authMiddleware)
-	}
-
-	return router, db
-}
 
 func TestPostPersonSuccess(t *testing.T) {
 	r, db := setup(true, true)
+
 	handlers := &Handlers{DB: db}
-	r.POST("/person", handlers.PostPerson)
+	r.HandleFunc("/person", handlers.PostPerson).Methods("POST")
 
 	person := models.Person{
 		Name:  "Demo Company",
 		Email: "demo@company.com",
 	}
 
-	jsonValue, _ := json.Marshal(person)
-	reqFound, _ := http.NewRequest("POST", "/person", bytes.NewBuffer(jsonValue))
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, reqFound)
+	code, body, err := makeRequest[models.IdResult](r, "POST", "/person", person)
 
-	assert.Equal(t, http.StatusAccepted, w.Code)
-
-	result := &models.IdResult{}
-	json.Unmarshal(w.Body.Bytes(), result)
-
-	assert.Equal(t, 1, result.ID)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusAccepted, code)
+	assert.Equal(t, 1, body.ID)
 }
 
 func TestPostPersonMissingName(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.POST("/person", handlers.PostPerson)
+	r.HandleFunc("/person", handlers.PostPerson).Methods("POST")
 
 	person := models.Person{
 		Name:  "",
@@ -87,7 +57,7 @@ func TestPostPersonDuplicate(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
 
-	r.POST("/person", handlers.PostPerson)
+	r.HandleFunc("/person", handlers.PostPerson).Methods("POST")
 
 	person := models.Person{
 		Name:  "Test",
@@ -115,7 +85,7 @@ func TestPostPersonDuplicate(t *testing.T) {
 func TestPutPersonSuccess(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.PUT("/person/:id", handlers.PutPerson)
+	r.HandleFunc("/person/{id}", handlers.PutPerson).Methods("PUT")
 
 	person := models.Person{
 		ID:    1,
@@ -143,7 +113,7 @@ func TestPutPersonSuccess(t *testing.T) {
 func TestPutPersonValidation(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.PUT("/person/:id", handlers.PutPerson)
+	r.HandleFunc("/person/{id}", handlers.PutPerson).Methods("PUT")
 
 	person := models.Person{
 		ID:    1,
@@ -169,7 +139,7 @@ func TestPutPersonValidation(t *testing.T) {
 func TestPutPersonMissing(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.PUT("/person/:id", handlers.PutPerson)
+	r.HandleFunc("/person/{id}", handlers.PutPerson).Methods("PUT")
 
 	person := models.Person{
 		ID:    10,
@@ -188,7 +158,7 @@ func TestPutPersonMissing(t *testing.T) {
 func TestPutPersonBadUrl(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.PUT("/person/:id", handlers.PutPerson)
+	r.HandleFunc("/person/{id}", handlers.PutPerson).Methods("PUT")
 
 	reqFound, _ := http.NewRequest("PUT", "/person/a", bytes.NewBuffer([]byte{}))
 	w := httptest.NewRecorder()
@@ -200,7 +170,7 @@ func TestPutPersonBadUrl(t *testing.T) {
 func TestGetPersonSuccess(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.GET("/person/:id", handlers.GetPerson)
+	r.HandleFunc("/person/{id}", handlers.GetPerson).Methods("GET")
 
 	person := &models.Person{
 		Name:  "Test",
@@ -226,7 +196,7 @@ func TestGetPersonSuccess(t *testing.T) {
 func TestGetPersonNotFound(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.GET("/person/:id", handlers.GetPerson)
+	r.HandleFunc("/person/{id}", handlers.GetPerson).Methods("GET")
 
 	reqFound, _ := http.NewRequest("GET", "/person/1", bytes.NewBuffer([]byte{}))
 	w := httptest.NewRecorder()
@@ -238,7 +208,7 @@ func TestGetPersonNotFound(t *testing.T) {
 func TestGetPersonBadUrl(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.GET("/person/:id", handlers.GetPerson)
+	r.HandleFunc("/person/{id}", handlers.GetPerson).Methods("GET")
 
 	reqFound, _ := http.NewRequest("GET", "/person/a", bytes.NewBuffer([]byte{}))
 	w := httptest.NewRecorder()
@@ -250,7 +220,7 @@ func TestGetPersonBadUrl(t *testing.T) {
 func TestDeletePerson(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.DELETE("/person/:id", handlers.DeletePerson)
+	r.HandleFunc("/person/{id}", handlers.DeletePerson).Methods("DELETE")
 
 	person := &models.Person{
 		Name:  "Test",
@@ -272,7 +242,7 @@ func TestDeletePerson(t *testing.T) {
 func TestDeletePersonNotFound(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.DELETE("/person/:id", handlers.DeletePerson)
+	r.HandleFunc("/person/{id}", handlers.DeletePerson).Methods("DELETE")
 
 	reqFound, _ := http.NewRequest("DELETE", "/person/1", bytes.NewBuffer([]byte{}))
 	w := httptest.NewRecorder()
@@ -284,7 +254,7 @@ func TestDeletePersonNotFound(t *testing.T) {
 func TestDeletePersonBadUrl(t *testing.T) {
 	r, db := setup(true, true)
 	handlers := &Handlers{DB: db}
-	r.DELETE("/person/:id", handlers.DeletePerson)
+	r.HandleFunc("/person/{id}", handlers.DeletePerson).Methods("DELETE")
 
 	reqFound, _ := http.NewRequest("DELETE", "/person/a", bytes.NewBuffer([]byte{}))
 	w := httptest.NewRecorder()

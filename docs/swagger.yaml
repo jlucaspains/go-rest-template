@@ -38,6 +38,8 @@ definitions:
         maxLength: 100
         minLength: 3
         type: string
+      update_user:
+        type: string
       updated_at:
         type: string
     required:
