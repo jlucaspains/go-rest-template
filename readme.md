@@ -1,7 +1,7 @@
 ## Features
 - [x] Golang
   - [x] VS Code extension recommendations
-- [x] REST API with gin
+- [x] REST API
   - [x] Handlers with dependency injection
   - [x] Default Health handler with DB ping check
   - [x] Swagger UI

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"goapi-template/models"
 	"log"
 	"net/http"
@@ -10,7 +11,7 @@ import (
 	"time"
 
 	keyfunc "github.com/MicahParks/keyfunc/v2"
-	"github.com/gin-gonic/gin"
+	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/rego"
 )
 
@@ -24,62 +25,95 @@ func Init() {
 	cachedSet = loadJWKSCache()
 }
 
-func TokenAuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
+// func (m *LogMiddleware) Func() mux.MiddlewareFunc {
+// 	return func(next http.Handler) http.Handler {
+// 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 			startTime := time.Now()
 
-		token, err := extractToken(c.Request)
+// 			logRespWriter := NewLogResponseWriter(w)
+// 			next.ServeHTTP(logRespWriter, r)
 
-		if err != nil {
-			log.Printf("token check failed %v", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}})
-			return
-		}
+// 			m.logger.Printf(
+// 				"url=%s duration=%s status=%d",
+// 				r.URL.String(),
+// 				time.Since(startTime).String(),
+// 				logRespWriter.statusCode)
+// 		})
+// 	}
+// }
 
-		user, err := validateUserToken(token, authConfig, cachedSet)
+func TokenAuthMiddleware() mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
 
-		if err != nil {
-			log.Printf("token check failed %v", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}})
-			return
-		}
+			token, err := extractToken(r)
 
-		c.Set("User", user)
+			if err != nil {
+				log.Printf("token check failed %v", err)
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Header().Set("Content-Type", "application/json")
+				data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
+				result, _ := json.Marshal(data)
+				w.Write(result)
+				return
+			}
 
-		elapsed := time.Since(start)
-		log.Printf("Auth Middleware took %v", elapsed)
+			user, err := validateUserToken(token, authConfig, cachedSet)
 
-		c.Next()
+			if err != nil {
+				log.Printf("token check failed %v", err)
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Header().Set("Content-Type", "application/json")
+				data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
+				result, _ := json.Marshal(data)
+				w.Write(result)
+				return
+			}
+
+			newReq := r.WithContext(context.WithValue(r.Context(), "User", user))
+
+			elapsed := time.Since(start)
+			log.Printf("Auth Middleware took %v", elapsed)
+
+			next.ServeHTTP(w, newReq)
+		})
 	}
 }
 
-func OpaMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		token, _ := extractToken(c.Request)
+func OpaMiddleware() mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			token, _ := extractToken(r)
 
-		input := map[string]interface{}{
-			"method": c.Request.Method,
-			"path":   c.Request.RequestURI,
-			"token":  token,
-		}
-		res, err := opaQuery.Eval(c.Request.Context(), rego.EvalInput(input))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, err)
-			c.Abort()
-			return
-		}
+			input := map[string]interface{}{
+				"method": r.Method,
+				"path":   r.RequestURI,
+				"token":  token,
+			}
+			res, err := opaQuery.Eval(r.Context(), rego.EvalInput(input))
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Header().Set("Content-Type", "application/json")
+				result, _ := json.Marshal(err)
+				w.Write(result)
+				return
+			}
 
-		if !res.Allowed() {
-			c.JSON(http.StatusForbidden, &models.ErrorResult{Errors: []string{"forbidden"}})
-			c.Abort()
-			return
-		}
+			if !res.Allowed() {
+				w.WriteHeader(http.StatusForbidden)
+				w.Header().Set("Content-Type", "application/json")
+				result, _ := json.Marshal(&models.ErrorResult{Errors: []string{"forbidden"}})
+				w.Write(result)
+				return
+			}
 
-		elapsed := time.Since(start)
-		log.Printf("Opa Middleware took %v", elapsed)
+			elapsed := time.Since(start)
+			log.Printf("Opa Middleware took %v", elapsed)
 
-		c.Next()
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 

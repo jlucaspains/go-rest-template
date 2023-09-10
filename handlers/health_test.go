@@ -14,7 +14,8 @@ import (
 func TestHealthSuccess(t *testing.T) {
 	r, db := setup(true, false)
 	handlers := &Handlers{DB: db}
-	r.GET("/health", handlers.GetHealth)
+
+	r.HandleFunc("/health", handlers.GetHealth).Methods("GET")
 
 	reqFound, _ := http.NewRequest("GET", "/health", bytes.NewBuffer([]byte{}))
 	w := httptest.NewRecorder()
@@ -31,7 +32,7 @@ func TestHealthSuccess(t *testing.T) {
 func TestHealthBadDB(t *testing.T) {
 	r, db := setup(true, false)
 	handlers := &Handlers{DB: db}
-	r.GET("/health", handlers.GetHealth)
+	r.HandleFunc("/health", handlers.GetHealth).Methods("GET")
 
 	newDB, _ := db.DB()
 	newDB.Close()

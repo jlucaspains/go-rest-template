@@ -1,12 +1,20 @@
 package handlers
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"goapi-template/auth"
+	"goapi-template/db"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 )
 
 func TestErrorTranslationSuccess(t *testing.T) {
@@ -52,7 +60,11 @@ func (c MockGetNothing) Get(key string) (value any, exists bool) {
 func TestGetUser(t *testing.T) {
 
 	handlers := new(Handlers)
-	user := handlers.GetUser(new(MockGet))
+	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
+	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
+	newReq := req.WithContext(context.WithValue(req.Context(), "User", body))
+
+	user := handlers.GetUser(newReq)
 
 	assert.Equal(t, "test", user.ID)
 	assert.Equal(t, "test", user.Name)
@@ -61,7 +73,11 @@ func TestGetUser(t *testing.T) {
 
 func TestGetUserEmail(t *testing.T) {
 	handlers := new(Handlers)
-	email := handlers.GetUserEmail(new(MockGet))
+	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
+	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
+	newReq := req.WithContext(context.WithValue(req.Context(), "User", body))
+
+	email := handlers.GetUserEmail(newReq)
 
 	assert.Equal(t, "email@test.com", email)
 }
@@ -75,7 +91,52 @@ func TestGetUserEmailEmpty1(t *testing.T) {
 
 func TestGetUserEmailEmpty2(t *testing.T) {
 	handlers := new(Handlers)
-	email := handlers.GetUserEmail(new(MockGetNothing))
+	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
+
+	email := handlers.GetUserEmail(req)
 
 	assert.Equal(t, "", email)
+}
+
+func makeRequest[K any | []any](router *mux.Router, method string, url string, body any) (code int, respBody *K, err error) {
+	inputBody := ""
+
+	if body != nil {
+		inputBodyJson, _ := json.Marshal(body)
+		inputBody = string(inputBodyJson)
+	}
+
+	req, _ := http.NewRequest(method, url, bytes.NewReader([]byte(inputBody)))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	result := new(K)
+	err = json.Unmarshal(rr.Body.Bytes(), &result)
+
+	return rr.Code, result, err
+}
+
+func setup(migrate bool, useAuthMiddleware bool) (*mux.Router, *gorm.DB) {
+	router := mux.NewRouter()
+
+	godotenv.Load("../.testing.env")
+	db, err := db.Init("sqlite", ":memory:", migrate)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if useAuthMiddleware {
+		authMiddleware := func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := r.Context()
+				user := &auth.User{ID: "Test", Name: "Test", Email: "mail@test.com"}
+				req := r.WithContext(context.WithValue(ctx, "User", user))
+				next.ServeHTTP(w, req)
+			})
+		}
+		router.Use(authMiddleware)
+	}
+
+	return router, db
 }

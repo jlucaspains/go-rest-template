@@ -4,22 +4,20 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"strings"
-	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
+
+	goHandlers "github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"goapi-template/auth"
 	"goapi-template/db"
 	"goapi-template/docs"
 	"goapi-template/handlers"
-
-	swaggerfiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func loadEnv() {
@@ -40,34 +38,29 @@ func getAllowedOrigins() string {
 	return allowedOrigin
 }
 
-func setupRouter(db *gorm.DB) *gin.Engine {
+func setupRouter(db *gorm.DB) http.Handler {
 	log.Print("Starting API... \n")
-
-	engine := gin.New()
-	engine.Use(gin.Logger())
-	engine.Use(gin.Recovery())
-	engine.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{getAllowedOrigins()},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin"},
-		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
-
-	setTrustedProxies(engine)
 
 	handlers := &handlers.Handlers{DB: db}
 
-	authGroup := engine.Group("person", auth.TokenAuthMiddleware(), auth.OpaMiddleware())
-	{
-		authGroup.GET(":id", handlers.GetPerson)
-		authGroup.POST("", handlers.PostPerson)
-		authGroup.PUT(":id", handlers.PutPerson)
-		authGroup.DELETE(":id", handlers.DeletePerson)
-	}
+	router := mux.NewRouter()
+	peopleRouter := router.PathPrefix("/person").Subrouter()
+	peopleRouter.HandleFunc("/{id}", handlers.GetPerson).Methods("GET")
+	peopleRouter.HandleFunc("", handlers.PostPerson).Methods("POST")
+	peopleRouter.HandleFunc("/{id}", handlers.PutPerson).Methods("PUT")
+	peopleRouter.HandleFunc("/{id}", handlers.DeletePerson).Methods("DELETE")
+	peopleRouter.Use(auth.TokenAuthMiddleware())
+	peopleRouter.Use(auth.OpaMiddleware())
 
-	engine.GET("/health", handlers.GetHealth)
+	router.HandleFunc("/health", handlers.GetHealth).Methods("GET")
+
+	headersOk := goHandlers.AllowedHeaders([]string{"X-Requested-With", "Origin", "Content-Length", "Content-Type"})
+	originsOk := goHandlers.AllowedOrigins([]string{getAllowedOrigins()})
+	methodsOk := goHandlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+	credentialsOk := goHandlers.AllowCredentials()
+
+	// logMiddleware := midlewares.NewLogMiddleware(log.Default())
+	// router.Use(logMiddleware.Func())
 
 	enableSwagger, ok := os.LookupEnv("ENABLE_SWAGGER")
 	if !ok {
@@ -75,10 +68,17 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 	}
 
 	if enableSwagger == "true" {
-		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler, ginSwagger.Oauth2DefaultClientID("c571ab3c-0fde-43b2-b010-77e7bdd0d6f7")))
+		router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"), //The url pointing to API definition
+			httpSwagger.DeepLinking(true),
+			httpSwagger.DocExpansion("none"),
+			httpSwagger.DomID("swagger-ui"),
+		)).Methods(http.MethodGet)
 	}
 
-	return engine
+	handler := goHandlers.CORS(originsOk, headersOk, methodsOk, credentialsOk)(router)
+
+	return goHandlers.LoggingHandler(os.Stdout, handler)
 }
 
 func initDB() *gorm.DB {
@@ -99,17 +99,6 @@ func initDB() *gorm.DB {
 	}
 
 	return db
-}
-
-func setTrustedProxies(engine *gin.Engine) {
-	if config, ok := os.LookupEnv("GIN_TRUSTED_PROXIES"); ok {
-		if config == "nil" {
-			engine.SetTrustedProxies(nil)
-		} else {
-			result := strings.Split(config, ",")
-			engine.SetTrustedProxies(result)
-		}
-	}
 }
 
 // @securitydefinitions.oauth2.implicit					OAuth2Implicit
@@ -135,5 +124,18 @@ func main() {
 	if !ok {
 		port = "localhost:8000"
 	}
-	router.Run(port)
+
+	useTls := false
+	certFile, ok := os.LookupEnv("TLS_CERT_FILE")
+	useTls = ok
+
+	certKeyFile, ok := os.LookupEnv("TLS_CERT_KEY_FILE")
+	useTls = useTls && ok
+
+	log.Printf("Starting TLS server on port: %s; use tls: %t", port, useTls)
+	if useTls {
+		log.Fatalln(http.ListenAndServeTLS(port, certFile, certKeyFile, router))
+	} else {
+		log.Fatalln(http.ListenAndServe(port, router))
+	}
 }
