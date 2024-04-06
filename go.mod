@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
-	github.com/glebarez/sqlite v1.10.0
+	github.com/glebarez/sqlite v1.11.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/gorilla/handlers v1.5.2
