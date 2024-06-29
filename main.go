@@ -2,103 +2,154 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"gorm.io/gorm"
+	"github.com/rs/cors"
 
-	goHandlers "github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"goapi-template/auth"
 	"goapi-template/db"
 	"goapi-template/docs"
 	"goapi-template/handlers"
+	"goapi-template/middlewares"
 )
 
-func loadEnv() {
-	// outside of local environment, variables should be
-	// OS environment variables
-	env := os.Getenv("ENV")
-	if err := godotenv.Load(); err != nil && env == "" {
+type configuration struct {
+	env              string
+	cors             cors.Cors
+	enableSwagger    bool
+	webPort          string
+	tlsCertFile      string
+	tlsCertKeyFile   string
+	connectionString string
+}
+
+var config configuration
+
+func initConfiguration() {
+	config.env = os.Getenv("ENV")
+
+	if err := godotenv.Load(); err != nil && config.env == "" {
 		log.Fatal(fmt.Printf("Error loading .env file: %s", err))
 	}
-}
 
-func getAllowedOrigins() string {
-	allowedOrigin, ok := os.LookupEnv("ALLOWED_ORIGIN")
-	if !ok {
-		allowedOrigin = "http://localhost:8000"
+	allowedOrigin, _ := os.LookupEnv("ALLOWED_ORIGIN")
+
+	config.cors = *cors.New(cors.Options{
+		AllowedOrigins: []string{allowedOrigin},
+	})
+
+	if enableSwagger, ok := os.LookupEnv("ENABLE_SWAGGER"); ok {
+		config.enableSwagger = enableSwagger == "true"
 	}
 
-	return allowedOrigin
-}
-
-func setupRouter(db *gorm.DB) http.Handler {
-	log.Print("Starting API... \n")
-
-	handlers := &handlers.Handlers{DB: db}
-
-	router := mux.NewRouter()
-	peopleRouter := router.PathPrefix("/person").Subrouter()
-	peopleRouter.HandleFunc("/{id}", handlers.GetPerson).Methods("GET")
-	peopleRouter.HandleFunc("", handlers.PostPerson).Methods("POST")
-	peopleRouter.HandleFunc("/{id}", handlers.PutPerson).Methods("PUT")
-	peopleRouter.HandleFunc("/{id}", handlers.DeletePerson).Methods("DELETE")
-	peopleRouter.Use(auth.TokenAuthMiddleware())
-	peopleRouter.Use(auth.OpaMiddleware())
-
-	router.HandleFunc("/health", handlers.GetHealth).Methods("GET")
-
-	headersOk := goHandlers.AllowedHeaders([]string{"X-Requested-With", "Origin", "Content-Length", "Content-Type"})
-	originsOk := goHandlers.AllowedOrigins([]string{getAllowedOrigins()})
-	methodsOk := goHandlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
-	credentialsOk := goHandlers.AllowCredentials()
-
-	// logMiddleware := midlewares.NewLogMiddleware(log.Default())
-	// router.Use(logMiddleware.Func())
-
-	enableSwagger, ok := os.LookupEnv("ENABLE_SWAGGER")
-	if !ok {
-		enableSwagger = "false"
+	if webPort, ok := os.LookupEnv("WEB_PORT"); ok {
+		config.webPort = webPort
+	} else {
+		config.webPort = "localhost:8000"
 	}
 
-	if enableSwagger == "true" {
-		router.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-			httpSwagger.URL("/swagger/doc.json"), //The url pointing to API definition
+	config.tlsCertFile, _ = os.LookupEnv("TLS_CERT_FILE")
+	config.tlsCertKeyFile, _ = os.LookupEnv("TLS_CERT_KEY_FILE")
+
+	if connectionString, ok := os.LookupEnv("DB_CONNECTION_STRING"); ok {
+		config.connectionString = connectionString
+	} else {
+		log.Fatal("must set DB_CONNECTION_STRING=<connection string>")
+	}
+}
+
+func withMiddlewares(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
+	return middlewares.LogMiddleware(
+		config.cors.Handler(
+			auth.OpaMiddleware(
+				auth.TokenAuthMiddleware(
+					http.HandlerFunc(handler)))))
+}
+
+func onlyLogMiddleware(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
+	return middlewares.LogMiddleware(
+		http.HandlerFunc(handler))
+}
+
+func setupRouter(db db.Querier) http.Handler {
+	slog.Info("Starting API... \n")
+
+	controllers := &handlers.Handlers{Queries: db}
+	router := http.NewServeMux()
+
+	router.HandleFunc("OPTIONS /", config.cors.HandlerFunc)
+	router.Handle("GET /health", onlyLogMiddleware(controllers.GetHealth))
+
+	router.Handle("GET /person/{id}", withMiddlewares(controllers.GetPerson))
+	router.Handle("POST /person", withMiddlewares(controllers.PostPerson))
+	router.Handle("PUT /person/{id}", withMiddlewares(controllers.PutPerson))
+	router.Handle("DELETE /person/{id}", withMiddlewares(controllers.DeletePerson))
+
+	if config.enableSwagger {
+		slog.Info("Swagger enabled")
+		swaggerHandler := httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
 			httpSwagger.DeepLinking(true),
 			httpSwagger.DocExpansion("none"),
 			httpSwagger.DomID("swagger-ui"),
-		)).Methods(http.MethodGet)
+		)
+		router.Handle("GET /swagger/", swaggerHandler)
 	}
 
-	handler := goHandlers.CORS(originsOk, headersOk, methodsOk, credentialsOk)(router)
-
-	return goHandlers.LoggingHandler(os.Stdout, handler)
+	return router
 }
 
-func initDB() *gorm.DB {
-	provider, ok := os.LookupEnv("DB_PROVIDER")
-	if !ok {
-		provider = "postgres"
+func initDB(ctx context.Context) (db.Querier, func()) {
+	if err := db.Init(config.connectionString); err != nil {
+		log.Fatal(err)
 	}
 
-	connectionString, ok := os.LookupEnv("DB_CONNECTION_STRING")
-	if !ok {
-		log.Fatal("DB_CONNECTION_STRING is a required parameter")
+	conn, err := pgxpool.New(ctx, config.connectionString)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	db, err := db.Init(provider, connectionString, true)
+	queries := db.New(conn)
+
+	return queries, conn.Close
+}
+
+func startWebServer(querier db.Querier) func(ctx context.Context) error {
+	slog.Info("Setting up API router...\n")
+	docs.SwaggerInfo.BasePath = "/"
+
+	router := setupRouter(querier)
+
+	srv := &http.Server{
+		Addr: config.webPort,
+	}
+	srv.Handler = router
+
+	useTls := config.tlsCertFile != "" && config.tlsCertKeyFile != ""
+
+	slog.Info("Starting TLS server", "port", config.webPort, "tls", useTls)
+
+	var err error
+	if useTls {
+		err = srv.ListenAndServeTLS(config.tlsCertFile, config.tlsCertKeyFile)
+	} else {
+		err = srv.ListenAndServe()
+	}
 
 	if err != nil {
-		log.Fatalf("Failed to initialize DB. Error: %v", err)
+		slog.Error("Error starting server", "error", err)
 	}
 
-	return db
+	return srv.Shutdown
 }
 
 // @securitydefinitions.oauth2.implicit					OAuth2Implicit
@@ -106,36 +157,18 @@ func initDB() *gorm.DB {
 // @tokenUrl												https://login.microsoftonline.com/9e6b9f31-c202-4cbd-a9b1-7e5cb3874384/oauth2/v2.0/token
 // @scope.api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api	API
 func main() {
-	log.Print("loading .env file...\n")
-	loadEnv()
+	ctx := context.Background()
 
-	log.Print("Init auth...\n")
+	slog.Info("loading .env file...\n")
+	initConfiguration()
+
+	slog.Info("Init auth...\n")
 	auth.Init()
 
-	log.Print("Init DB...\n")
-	db := initDB()
+	slog.Info("Init DB...\n")
+	db, dbDispose := initDB(ctx)
+	defer dbDispose()
 
-	log.Print("Setting up API router...\n")
-	docs.SwaggerInfo.BasePath = "/"
-
-	router := setupRouter(db)
-
-	port, ok := os.LookupEnv("WEB_PORT")
-	if !ok {
-		port = "localhost:8000"
-	}
-
-	useTls := false
-	certFile, ok := os.LookupEnv("TLS_CERT_FILE")
-	useTls = ok
-
-	certKeyFile, ok := os.LookupEnv("TLS_CERT_KEY_FILE")
-	useTls = useTls && ok
-
-	log.Printf("Starting TLS server on port: %s; use tls: %t", port, useTls)
-	if useTls {
-		log.Fatalln(http.ListenAndServeTLS(port, certFile, certKeyFile, router))
-	} else {
-		log.Fatalln(http.ListenAndServe(port, router))
-	}
+	webDispose := startWebServer(db)
+	defer webDispose(ctx)
 }

@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"goapi-template/models"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	keyfunc "github.com/MicahParks/keyfunc/v2"
-	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/rego"
 )
 
@@ -29,79 +29,75 @@ type key int
 
 const UserKey key = 1
 
-func TokenAuthMiddleware() mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
+func TokenAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 
-			token, err := extractToken(r)
+		token, err := extractToken(r)
 
-			if err != nil {
-				log.Printf("token check failed %v", err)
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Header().Set("Content-Type", "application/json")
-				data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
-				result, _ := json.Marshal(data)
-				w.Write(result)
-				return
-			}
+		if err != nil {
+			slog.Error("token check failed", "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
+			result, _ := json.Marshal(data)
+			w.Write(result)
+			return
+		}
 
-			user, err := validateUserToken(token, authConfig, cachedSet)
+		user, err := validateUserToken(token, authConfig, cachedSet)
 
-			if err != nil {
-				log.Printf("token check failed %v", err)
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Header().Set("Content-Type", "application/json")
-				data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
-				result, _ := json.Marshal(data)
-				w.Write(result)
-				return
-			}
+		if err != nil {
+			slog.Error("token check failed", "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
+			result, _ := json.Marshal(data)
+			w.Write(result)
+			return
+		}
 
-			newReq := r.WithContext(context.WithValue(r.Context(), UserKey, user))
+		newReq := r.WithContext(context.WithValue(r.Context(), UserKey, user))
 
-			elapsed := time.Since(start)
-			log.Printf("Auth Middleware took %v", elapsed)
+		elapsed := time.Since(start)
+		slog.Info("Auth Middleware timing", "timeElapsed", elapsed)
 
-			next.ServeHTTP(w, newReq)
-		})
-	}
+		next.ServeHTTP(w, newReq)
+	})
 }
 
-func OpaMiddleware() mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			token, _ := extractToken(r)
+func OpaMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		token, _ := extractToken(r)
 
-			input := map[string]interface{}{
-				"method": r.Method,
-				"path":   r.RequestURI,
-				"token":  token,
-			}
-			res, err := opaQuery.Eval(r.Context(), rego.EvalInput(input))
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Header().Set("Content-Type", "application/json")
-				result, _ := json.Marshal(err)
-				w.Write(result)
-				return
-			}
+		input := map[string]interface{}{
+			"method": r.Method,
+			"path":   r.RequestURI,
+			"token":  token,
+		}
+		res, err := opaQuery.Eval(r.Context(), rego.EvalInput(input))
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			result, _ := json.Marshal(err)
+			w.Write(result)
+			return
+		}
 
-			if !res.Allowed() {
-				w.WriteHeader(http.StatusForbidden)
-				w.Header().Set("Content-Type", "application/json")
-				result, _ := json.Marshal(&models.ErrorResult{Errors: []string{"forbidden"}})
-				w.Write(result)
-				return
-			}
+		if !res.Allowed() {
+			w.WriteHeader(http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			result, _ := json.Marshal(&models.ErrorResult{Errors: []string{"forbidden"}})
+			w.Write(result)
+			return
+		}
 
-			elapsed := time.Since(start)
-			log.Printf("Opa Middleware took %v", elapsed)
+		elapsed := time.Since(start)
+		slog.Info("Opa Middleware timing", "timeElapsed", elapsed)
 
-			next.ServeHTTP(w, r)
-		})
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loadConfig() *models.AuthConfiguration {
@@ -148,7 +144,7 @@ func loadJWKSCache() *keyfunc.JWKS {
 		RefreshInterval: time.Hour,
 		RefreshTimeout:  time.Second * 10,
 		RefreshErrorHandler: func(err error) {
-			log.Printf("There was an error with the jwt.Keyfunc\nError: %s", err.Error())
+			slog.Error("There was an error with the jwt.Keyfunc", "error", err.Error())
 		},
 	}
 

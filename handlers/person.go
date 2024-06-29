@@ -4,7 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"goapi-template/db"
 	"goapi-template/models"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // GetPerson godoc
@@ -27,11 +30,20 @@ func (h Handlers) GetPerson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := models.Person{}
-	if result := h.DB.First(&body, id); result.Error != nil {
-		status, body := h.ErrorToHttpResult(result.Error)
+	result, err := h.Queries.GetPersonById(r.Context(), int32(id))
+
+	if err != nil {
+		status, body := h.ErrorToHttpResult(err)
 		h.JSON(w, status, body)
 		return
+	}
+	body := models.Person{
+		ID:         int(result.ID),
+		Name:       result.Name,
+		Email:      result.Email,
+		CreatedAt:  result.CreatedAt.Time,
+		UpdatedAt:  result.UpdatedAt.Time,
+		UpdateUser: result.UpdateUser,
 	}
 
 	h.JSON(w, http.StatusOK, body)
@@ -62,13 +74,21 @@ func (h Handlers) PostPerson(w http.ResponseWriter, r *http.Request) {
 	body.ID = 0 // ensure we leverage auto increment
 	body.UpdateUser = h.GetUserEmail(r)
 
-	if result := h.DB.Create(&body); result.Error != nil {
-		status, body := h.ErrorToHttpResult(result.Error)
+	result, err := h.Queries.InsertPerson(r.Context(), db.InsertPersonParams{
+		Name:       body.Name,
+		Email:      body.Email,
+		CreatedAt:  pgtype.Timestamp{Time: body.CreatedAt, Valid: true},
+		UpdatedAt:  pgtype.Timestamp{Time: body.UpdatedAt, Valid: true},
+		UpdateUser: body.UpdateUser,
+	})
+
+	if err != nil {
+		status, body := h.ErrorToHttpResult(err)
 		h.JSON(w, status, body)
 		return
 	}
 
-	h.JSON(w, http.StatusAccepted, &models.IdResult{ID: body.ID})
+	h.JSON(w, http.StatusAccepted, &models.IdResult{ID: int(result.ID)})
 }
 
 // PutPerson godoc
@@ -101,17 +121,25 @@ func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
 
 	body.UpdateUser = h.GetUserEmail(r)
 
-	result := h.DB.Model(&models.Person{ID: int(id)}).Updates(&body)
-	if result.Error != nil {
+	_, err = h.Queries.UpdatePerson(r.Context(), db.UpdatePersonParams{
+		ID:         int32(id),
+		Name:       body.Name,
+		Email:      body.Email,
+		CreatedAt:  pgtype.Timestamp{Time: body.CreatedAt, Valid: true},
+		UpdatedAt:  pgtype.Timestamp{Time: body.UpdatedAt, Valid: true},
+		UpdateUser: body.UpdateUser,
+	})
+
+	if err != nil {
 		status, err := h.ErrorToHttpResult(err)
 		h.JSON(w, status, err)
 		return
 	}
 
-	if result.RowsAffected == 0 {
-		h.Status(w, http.StatusNotFound)
-		return
-	}
+	// if result.RowsAffected == 0 {
+	// 	h.Status(w, http.StatusNotFound)
+	// 	return
+	// }
 
 	h.Status(w, http.StatusAccepted)
 }
@@ -135,15 +163,15 @@ func (h Handlers) DeletePerson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := h.DB.Delete(&models.Person{}, id)
+	result, err := h.Queries.DeletePerson(r.Context(), int32(id))
 
-	if result.Error != nil {
+	if err != nil {
 		status, err := h.ErrorToHttpResult(err)
 		h.JSON(w, status, err)
 		return
 	}
 
-	if result.RowsAffected == 0 {
+	if result == 0 {
 		h.Status(w, http.StatusNotFound)
 		return
 	}

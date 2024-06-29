@@ -12,7 +12,6 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -294,15 +293,14 @@ func TestLoadOPAQuery(t *testing.T) {
 }
 
 func TestAuthTokenMiddlewareWithoutToken(t *testing.T) {
-	router := mux.NewRouter()
-	router.Use(TokenAuthMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()
@@ -337,15 +335,14 @@ func TestAuthMiddlewareValid(t *testing.T) {
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, _ := token.SignedString(priv)
 
-	router := mux.NewRouter()
-	router.Use(TokenAuthMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", tokenString))
@@ -358,15 +355,14 @@ func TestAuthMiddlewareValid(t *testing.T) {
 func TestOPAMiddlewareValid(t *testing.T) {
 	opaQuery = loadOpaQuery("./test.rego")
 
-	router := mux.NewRouter()
-	router.Use(OpaMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", "pass"))
@@ -379,15 +375,14 @@ func TestOPAMiddlewareValid(t *testing.T) {
 func TestOPAMiddleware403(t *testing.T) {
 	opaQuery = loadOpaQuery("./test.rego")
 
-	router := mux.NewRouter()
-	router.Use(OpaMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", OpaMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", "deny"))
