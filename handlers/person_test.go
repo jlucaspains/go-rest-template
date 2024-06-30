@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,7 +55,9 @@ func TestPostPersonMissingName(t *testing.T) {
 }
 
 func TestPostPersonDuplicate(t *testing.T) {
-	db := &QuerierMock{}
+	db := &QuerierMock{
+		InsertPersonError: &pgconn.PgError{Code: "23505"},
+	}
 	r := setup(db)
 
 	person := models.Person{
@@ -70,13 +74,7 @@ func TestPostPersonDuplicate(t *testing.T) {
 
 func TestPutPersonSuccess(t *testing.T) {
 	db := &QuerierMock{
-		UpdatePersonResult: db.Person{
-			ID:        1,
-			Name:      "Test",
-			Email:     "mail@company.com",
-			CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
-			UpdatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
-		},
+		UpdatePersonResult: 1,
 	}
 	r := setup(db)
 
@@ -86,11 +84,10 @@ func TestPutPersonSuccess(t *testing.T) {
 		Email: "mail@company.com",
 	}
 
-	code, result, _, err := makeRequest[models.Person](r, "PUT", "/person/1", person)
+	code, _, _, err := makeRequest[string](r, "PUT", "/person/1", person)
 
 	assert.Nil(t, err)
-	assert.Equal(t, 200, code)
-	assert.Equal(t, "Test 2", result.Name)
+	assert.Equal(t, http.StatusAccepted, code)
 }
 
 func TestPutPersonValidation(t *testing.T) {
@@ -111,7 +108,9 @@ func TestPutPersonValidation(t *testing.T) {
 }
 
 func TestPutPersonMissing(t *testing.T) {
-	db := &QuerierMock{}
+	db := &QuerierMock{
+		UpdatePersonResult: 0,
+	}
 	r := setup(db)
 
 	person := models.Person{
@@ -120,7 +119,7 @@ func TestPutPersonMissing(t *testing.T) {
 		Email: "mail@company.com",
 	}
 
-	code, _, _, err := makeRequest[models.ErrorResult](r, "PUT", "/person/10", person)
+	code, _, _, err := makeRequest[string](r, "PUT", "/person/10", person)
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusNotFound, code)
@@ -137,7 +136,15 @@ func TestPutPersonBadUrl(t *testing.T) {
 }
 
 func TestGetPersonSuccess(t *testing.T) {
-	db := &QuerierMock{}
+	db := &QuerierMock{
+		GetPersonByIdResult: db.Person{
+			ID:        1,
+			Name:      "Test",
+			Email:     "mail@company.com",
+			CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
+			UpdatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
+		},
+	}
 	r := setup(db)
 
 	person := &models.Person{
@@ -149,13 +156,15 @@ func TestGetPersonSuccess(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, code)
-	assert.Equal(t, result.ID, 1)
-	assert.Equal(t, result.Name, person.Name)
-	assert.Equal(t, result.Email, person.Email)
+	assert.Equal(t, 1, result.ID)
+	assert.Equal(t, person.Name, result.Name)
+	assert.Equal(t, person.Email, result.Email)
 }
 
 func TestGetPersonNotFound(t *testing.T) {
-	db := &QuerierMock{}
+	db := &QuerierMock{
+		GetPersonByIdError: pgx.ErrNoRows,
+	}
 	r := setup(db)
 
 	code, _, _, err := makeRequest[models.Person](r, "GET", "/person/1", nil)
@@ -175,20 +184,24 @@ func TestGetPersonBadUrl(t *testing.T) {
 }
 
 func TestDeletePerson(t *testing.T) {
-	db := &QuerierMock{}
+	db := &QuerierMock{
+		DeletePersonResult: 1,
+	}
 	r := setup(db)
 
-	code, _, _, err := makeRequest[models.Person](r, "DELETE", "/person/1", nil)
+	code, _, _, err := makeRequest[string](r, "DELETE", "/person/1", nil)
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusAccepted, code)
 }
 
 func TestDeletePersonNotFound(t *testing.T) {
-	db := &QuerierMock{}
+	db := &QuerierMock{
+		DeletePersonResult: 0,
+	}
 	r := setup(db)
 
-	code, _, _, err := makeRequest[models.Person](r, "DELETE", "/person/1", nil)
+	code, _, _, err := makeRequest[string](r, "DELETE", "/person/1", nil)
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusNotFound, code)
@@ -198,7 +211,7 @@ func TestDeletePersonBadUrl(t *testing.T) {
 	db := &QuerierMock{}
 	r := setup(db)
 
-	code, _, _, err := makeRequest[models.Person](r, "DELETE", "/person/a", nil)
+	code, _, _, err := makeRequest[string](r, "DELETE", "/person/a", nil)
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusBadRequest, code)

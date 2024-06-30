@@ -22,7 +22,7 @@ type QuerierMock struct {
 	GetPersonByIdError  error
 	InsertPersonResult  db.Person
 	InsertPersonError   error
-	UpdatePersonResult  db.Person
+	UpdatePersonResult  int64
 	UpdatePersonError   error
 	DeletePersonResult  int64
 	DeletePersonError   error
@@ -42,7 +42,7 @@ func (m *QuerierMock) InsertPerson(ctx context.Context, arg db.InsertPersonParam
 	return m.InsertPersonResult, m.InsertPersonError
 }
 
-func (m *QuerierMock) UpdatePerson(ctx context.Context, arg db.UpdatePersonParams) (db.Person, error) {
+func (m *QuerierMock) UpdatePerson(ctx context.Context, arg db.UpdatePersonParams) (int64, error) {
 	return m.UpdatePersonResult, m.UpdatePersonError
 }
 

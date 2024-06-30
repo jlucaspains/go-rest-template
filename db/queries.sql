@@ -7,15 +7,14 @@ SELECT id, name, email, created_at, updated_at, update_user
 FROM person
 WHERE id = $1;
 
--- name: UpdatePerson :one
+-- name: UpdatePerson :execrows
 UPDATE person SET
   "name" = $2,
   email = $3,
   created_at = $4,
   updated_at = $5,
   update_user = $6
-where id = $1
-RETURNING *;
+where id = $1;
 
 -- name: InsertPerson :one
 INSERT INTO person (name, email, created_at, updated_at, update_user)

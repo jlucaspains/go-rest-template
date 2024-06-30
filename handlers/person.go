@@ -121,7 +121,7 @@ func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
 
 	body.UpdateUser = h.GetUserEmail(r)
 
-	_, err = h.Queries.UpdatePerson(r.Context(), db.UpdatePersonParams{
+	recordsUpdated, err := h.Queries.UpdatePerson(r.Context(), db.UpdatePersonParams{
 		ID:         int32(id),
 		Name:       body.Name,
 		Email:      body.Email,
@@ -136,10 +136,10 @@ func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if result.RowsAffected == 0 {
-	// 	h.Status(w, http.StatusNotFound)
-	// 	return
-	// }
+	if recordsUpdated == 0 {
+		h.Status(w, http.StatusNotFound)
+		return
+	}
 
 	h.Status(w, http.StatusAccepted)
 }

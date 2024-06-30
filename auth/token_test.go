@@ -362,7 +362,7 @@ func TestOPAMiddlewareValid(t *testing.T) {
 		w.Write([]byte("OK"))
 	}
 
-	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
+	router.Handle("GET /test", OpaMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", "pass"))

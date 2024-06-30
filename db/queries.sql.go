@@ -121,7 +121,7 @@ func (q *Queries) PingDb(ctx context.Context) (int32, error) {
 	return result, err
 }
 
-const updatePerson = `-- name: UpdatePerson :one
+const updatePerson = `-- name: UpdatePerson :execrows
 UPDATE person SET
   "name" = $2,
   email = $3,
@@ -129,7 +129,6 @@ UPDATE person SET
   updated_at = $5,
   update_user = $6
 where id = $1
-RETURNING id, name, email, created_at, updated_at, update_user
 `
 
 type UpdatePersonParams struct {
@@ -141,8 +140,8 @@ type UpdatePersonParams struct {
 	UpdateUser string
 }
 
-func (q *Queries) UpdatePerson(ctx context.Context, arg UpdatePersonParams) (Person, error) {
-	row := q.db.QueryRow(ctx, updatePerson,
+func (q *Queries) UpdatePerson(ctx context.Context, arg UpdatePersonParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updatePerson,
 		arg.ID,
 		arg.Name,
 		arg.Email,
@@ -150,14 +149,8 @@ func (q *Queries) UpdatePerson(ctx context.Context, arg UpdatePersonParams) (Per
 		arg.UpdatedAt,
 		arg.UpdateUser,
 	)
-	var i Person
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.UpdateUser,
-	)
-	return i, err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

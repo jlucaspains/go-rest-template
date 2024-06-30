@@ -33,7 +33,7 @@ func (h Handlers) ErrorToHttpResult(err error) (int, *models.ErrorResult) {
 
 	if dbError, ok := err.(*pgconn.PgError); ok {
 		if dbError.Code == "23505" {
-			return http.StatusConflict, nil
+			return http.StatusConflict, &models.ErrorResult{Errors: []string{"Record duplication detected"}}
 		}
 	}
 
