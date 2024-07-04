@@ -132,4 +132,3 @@ jobs:
           auth_config_url: '${{ secrets.AUTH_CONFIG_URL }}'
           auth_audience: '${{ secrets.AUTH_AUDIENCE }}'
           db_connection_string: '${{ secrets.DB_CONNECTION_STRING }}'
-          db_provider: '${{ secrets.DB_PROVIDER }}'

@@ -8,7 +8,6 @@ data:
   ENV: "aks"
   WEB_PORT: ":8000"
   AUTH_CLAIMS: "given_name,family_name"
+  AUTH_SCOPES: "api"
   ENABLE_SWAGGER: "true"
-  GIN_MODE: "release"
-  GIN_TRUSTED_PROXIES: "nil"
   ALLOWED_ORIGIN: "*"

@@ -45,15 +45,9 @@ WEB_PORT=localhost:8000
 AUTH_CONFIG_URL=https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0/.well-known/openid-configuration
 AUTH_AUDIENCE=api://c571ab3c-0fde-43b2-b010-77e7bdd0d6f7/api/
 ENABLE_SWAGGER=true
-DB_PROVIDER=postgres
-DB_CONNECTION_STRING=host=localhost user=postgres password=mysecretpassword dbname=goapitemplate port=5432 sslmode=disable TimeZone=America/Denver
+DB_CONNECTION_STRING=postgres://postgres:94235CXcx@localhost:5432/goapitemplate?sslmode=disable
 ```
-By default, the template uses Postres and thus you need it installed locally or available elsewhere. If you'd rather run with sqlite, change `DB_PROVIDER` and `DB_CONNECTION_STRING`:
-
-```env
-DB_PROVIDER=sqlite
-DB_CONNECTION_STRING=mydb.db
-```
+By default, the template uses Postres and thus you need it installed locally or available elsewhere.
 
 ### Run
 ```powershell
@@ -160,6 +154,7 @@ payload := {"verified": verified, "email": payload.email} if {
 	verified := true
 }
 ```
+
 Note that the token input field is the full JWT provided by the consumer. You may decode it and use any of the provided fields such as Role, name, email, etc to validate whether the call is authorized or not.
 
 The above basic policy enforces that the URL path must start with `/person` and the user email must end with `@gmail.com`. This is obviously just to get the authorization started and should be modified before using this template. For more information on OPA, please see https://www.openpolicyagent.org/.
@@ -183,5 +178,5 @@ By default, this repository includes a single GitHub Actions workflow with 3 job
 Before you push a similar solution to a production environment, keep the following recommendations in mind:
 
 1. Kubernetes secrets are not really secret. If possible, you should leverage a secrets platform such as Azure Key Vault.
-2. Favor managed database solutions instead of container based solution. Remember that if you do database in a container, you will need to take care of backups and other reliability related features that are typically available in managed solutions available in cloud platforms such as AWS and Azure.
+2. Favor managed database solutions instead of container based solution. Remember that if you use database in a container, you will need to take care of backups and other reliability related features that are typically available in managed solutions in cloud platforms such as AWS and Azure.
 3. Avoid using the latest tag for releases. If a pod goes down and comes back up, it might use a different version of the image than the other containers of the same type.

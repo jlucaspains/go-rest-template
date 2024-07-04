@@ -11,10 +11,9 @@ services:
       AUTH_CONFIG_URL: "${AUTH_CONFIG_URL}"
       AUTH_AUDIENCE: "${AUTH_AUDIENCE}"
       AUTH_CLAIMS: "given_name,family_name"
-      DB_CONNECTION_STRING: "host=db user=postgres password=${POSTGRES_PASSWORD} dbname=goapitemplate port=5432"
+      AUTH_SCOPES: "api"
+      DB_CONNECTION_STRING: "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/goapitemplate?sslmode=disable"
       ENABLE_SWAGGER: true
-      GIN_MODE: "release"
-      GIN_TRUSTED_PROXIES: "nil"
       ALLOWED_ORIGIN: "*"
     ports:
       - "8000:8000"

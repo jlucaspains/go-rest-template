@@ -27,17 +27,8 @@ inputs:
     description: True to enable swagger pages. This is not recommended for PROD environments.
     default: "false"
   db_connection_string:
-    description: Connection string for the DB. Connection string format depends on db_provider parameter.
+    description: Connection string for the DB. Connection string format should be in URL.
     required: true
-  db_provider:
-    description: postgres or sqlite.
-    required: true
-  gin_mode:
-    description: release or debug. debug is not recommended but provides additional logging.
-    default: "release"
-  gin_trusted_proxies:
-    description: Trusted proxies for gin
-    default: "nil"
   allowed_origin:
     description: CORS allowed origins
     default: "*"
@@ -85,21 +76,6 @@ runs:
             {
                 "name": "DB_CONNECTION_STRING",
                 "value": "${{ inputs.db_connection_string }}",
-                "slotSetting": false
-            },
-            {
-                "name": "DB_PROVIDER",
-                "value": "${{ inputs.db_provider }}",
-                "slotSetting": false
-            },
-            {
-                "name": "GIN_MODE",
-                "value": "${{ inputs.gin_mode }}",
-                "slotSetting": false
-            },
-            {
-                "name": "GIN_TRUSTED_PROXIES",
-                "value": "${{ inputs.gin_trusted_proxies }}",
                 "slotSetting": false
             },
             {
