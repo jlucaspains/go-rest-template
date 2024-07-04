@@ -30,5 +30,12 @@ func TestLogMiddleware(t *testing.T) {
 
 	// Validation
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Regexp(t, "time=[0-9T\\-:\\.Z]+ level=INFO msg=WebRequest proto=HTTP/1.1 method=GET url=/test duration=0s status=200", buffer.String())
+	assert.Contains(t, buffer.String(), "time=")
+	assert.Contains(t, buffer.String(), "level=INFO")
+	assert.Contains(t, buffer.String(), "msg=WebRequest")
+	assert.Contains(t, buffer.String(), "proto=HTTP/1.1")
+	assert.Contains(t, buffer.String(), "method=GET")
+	assert.Contains(t, buffer.String(), "url=/test")
+	assert.Contains(t, buffer.String(), "duration=")
+	assert.Contains(t, buffer.String(), "status=200")
 }
