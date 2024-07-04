@@ -12,10 +12,11 @@
   - [x] Use .well-known/openid-configuration for configuration agnostic of provider
   - [x] Authorization via Open Policy Agent (OPA) policies
 - [x] DB
-  - [x] GORM
+  - ~~[x] GORM~~
+  - [x] SQLC
   - [x] Automatic Migrations
   - [x] Postgres DB provider
-  - [x] SQLite DB provider
+  - ~~[x] SQLite DB provider~~
 - [x] CI/CD
   - [x] Dockerfile
   - [x] Docker compose
