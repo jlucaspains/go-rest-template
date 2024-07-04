@@ -42,7 +42,7 @@ jobs:
           fail_on_error: true
 
       - name: Test
-        run: go test -cover ./...
+        run: go test -cover ./... > test-result.txt
 
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v0.10.2
