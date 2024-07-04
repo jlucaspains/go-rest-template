@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"goapi-template/auth"
 	"goapi-template/db"
 	"goapi-template/models"
+	"goapi-template/util"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -23,7 +23,7 @@ func (h Handlers) ErrorToHttpResult(err error) (int, *models.ErrorResult) {
 	slog.Error("Error handled", "error", err)
 
 	if vErrs, ok := err.(validator.ValidationErrors); ok {
-		out := translateErrors(vErrs)
+		out := util.TranslateErrors(vErrs)
 		return http.StatusBadRequest, &models.ErrorResult{Errors: out}
 	}
 
@@ -40,35 +40,35 @@ func (h Handlers) ErrorToHttpResult(err error) (int, *models.ErrorResult) {
 	return http.StatusInternalServerError, &models.ErrorResult{Errors: []string{"Unknown error"}}
 }
 
-func translateErrors(err validator.ValidationErrors) []string {
-	out := make([]string, len(err))
-	for i, fe := range err {
-		out[i] = getValidationErrorMsg(fe)
-	}
-	return out
-}
+// func translateErrors(err validator.ValidationErrors) []string {
+// 	out := make([]string, len(err))
+// 	for i, fe := range err {
+// 		out[i] = getValidationErrorMsg(fe)
+// 	}
+// 	return out
+// }
 
-func getValidationErrorMsg(fe validator.FieldError) string {
-	switch fe.Tag() {
-	case "required":
-		return fmt.Sprintf("%s is required", fe.Field())
-	case "lte":
-		return fmt.Sprintf("%s should be less than or equal to %s", fe.Field(), fe.Param())
-	case "lt":
-		return fmt.Sprintf("%s should be less than %s", fe.Field(), fe.Param())
-	case "gte":
-		return fmt.Sprintf("%s should be greater than or equal to %s", fe.Field(), fe.Param())
-	case "gt":
-		return fmt.Sprintf("%s should be greater than %s", fe.Field(), fe.Param())
-	case "min":
-		return fmt.Sprintf("%s should have minimum length of %s", fe.Field(), fe.Param())
-	case "max":
-		return fmt.Sprintf("%s should have maximum length of %s", fe.Field(), fe.Param())
-	case "alpha":
-		return fmt.Sprintf("%s should contain alpha characters only", fe.Field())
-	}
-	return "Unknown error"
-}
+// func getValidationErrorMsg(fe validator.FieldError) string {
+// 	switch fe.Tag() {
+// 	case "required":
+// 		return fmt.Sprintf("%s is required", fe.Field())
+// 	case "lte":
+// 		return fmt.Sprintf("%s should be less than or equal to %s", fe.Field(), fe.Param())
+// 	case "lt":
+// 		return fmt.Sprintf("%s should be less than %s", fe.Field(), fe.Param())
+// 	case "gte":
+// 		return fmt.Sprintf("%s should be greater than or equal to %s", fe.Field(), fe.Param())
+// 	case "gt":
+// 		return fmt.Sprintf("%s should be greater than %s", fe.Field(), fe.Param())
+// 	case "min":
+// 		return fmt.Sprintf("%s should have minimum length of %s", fe.Field(), fe.Param())
+// 	case "max":
+// 		return fmt.Sprintf("%s should have maximum length of %s", fe.Field(), fe.Param())
+// 	case "alpha":
+// 		return fmt.Sprintf("%s should contain alpha characters only", fe.Field())
+// 	}
+// 	return "Unknown error"
+// }
 
 func (h Handlers) GetUser(r *http.Request) *auth.User {
 	if r == nil {

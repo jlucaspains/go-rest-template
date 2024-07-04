@@ -21,7 +21,7 @@ var cachedSet JKWS
 
 func Init() {
 	authConfig = loadConfig()
-	opaQuery = loadOpaQuery("./auth/authz.rego")
+	opaQuery = loadOpaQuery()
 	cachedSet = loadJWKSCache()
 }
 
@@ -130,7 +130,13 @@ func loadConfig() *models.AuthConfiguration {
 	return config
 }
 
-func loadOpaQuery(regoPath string) *rego.PreparedEvalQuery {
+func loadOpaQuery() *rego.PreparedEvalQuery {
+	regoPath, ok := os.LookupEnv("AUTH_REGO_PATH")
+
+	if !ok {
+		regoPath = "./auth/authz.rego"
+	}
+
 	query, err := rego.New(rego.Query("data.authz.allow"), rego.Load([]string{regoPath}, nil)).PrepareForEval(context.TODO())
 	if err != nil {
 		log.Fatalf("failed to create rego query. Error: %v", err)

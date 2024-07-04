@@ -287,7 +287,7 @@ func TestLoadJWKSCache(t *testing.T) {
 }
 
 func TestLoadOPAQuery(t *testing.T) {
-	query := loadOpaQuery("./authz.rego")
+	query := loadOpaQuery()
 
 	assert.NotNil(t, query)
 }
@@ -303,6 +303,33 @@ func TestAuthTokenMiddlewareWithoutToken(t *testing.T) {
 	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, reqFound)
+
+	assert.Equal(t, 401, w.Code)
+}
+
+func TestAuthTokenMiddlewareMalformedToken(t *testing.T) {
+	authConfig = &models.AuthConfiguration{
+		Issuer:          "issuer",
+		TokenSigningAlg: []string{"RS256"},
+		Audience:        "audience",
+		ScopeClaim:      "scp",
+		Scopes:          []string{"api"},
+		ClaimFields:     []string{"test"},
+	}
+
+	router := http.NewServeMux()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
+	}
+
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
+
+	reqFound, _ := http.NewRequest("GET", "/test", nil)
+	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ""))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, reqFound)
 
@@ -353,7 +380,8 @@ func TestAuthMiddlewareValid(t *testing.T) {
 }
 
 func TestOPAMiddlewareValid(t *testing.T) {
-	opaQuery = loadOpaQuery("./test.rego")
+	os.Setenv("AUTH_REGO_PATH", "./test.rego")
+	opaQuery = loadOpaQuery()
 
 	router := http.NewServeMux()
 
@@ -373,7 +401,8 @@ func TestOPAMiddlewareValid(t *testing.T) {
 }
 
 func TestOPAMiddleware403(t *testing.T) {
-	opaQuery = loadOpaQuery("./test.rego")
+	os.Setenv("AUTH_REGO_PATH", "./test.rego")
+	opaQuery = loadOpaQuery()
 
 	router := http.NewServeMux()
 
