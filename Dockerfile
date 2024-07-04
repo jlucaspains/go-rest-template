@@ -1,5 +1,5 @@
 
-FROM golang:1.20.3-alpine3.17 AS builder
+FROM golang:1.22.5-alpine3.20 AS builder
 WORKDIR /app
 
 RUN apk update && apk add --no-cache ca-certificates && update-ca-certificates
@@ -28,6 +28,7 @@ COPY --from=builder /etc/group /etc/group
 WORKDIR /app
 COPY --from=builder /app/goapi-template .
 COPY --from=builder /app/auth/authz.rego ./auth/authz.rego
+COPY --from=builder /app/db/migrations/ ./db/migrations/
 USER appuser:appuser
 EXPOSE 8000
 ENTRYPOINT ["./goapi-template"]

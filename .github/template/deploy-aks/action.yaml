@@ -21,7 +21,7 @@ inputs:
     description: Valid audience for this API
     required: true
   db_connection_string:
-    description: Connection string for the DB. Connection string format depends on db_provider parameter.
+    description: Connection string for the DB. Connection string should be in url format.
     required: true
   postgres_db:
     description: Postgres DB name.

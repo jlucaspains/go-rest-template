@@ -12,7 +12,6 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -288,23 +287,49 @@ func TestLoadJWKSCache(t *testing.T) {
 }
 
 func TestLoadOPAQuery(t *testing.T) {
-	query := loadOpaQuery("./authz.rego")
+	query := loadOpaQuery()
 
 	assert.NotNil(t, query)
 }
 
 func TestAuthTokenMiddlewareWithoutToken(t *testing.T) {
-	router := mux.NewRouter()
-	router.Use(TokenAuthMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, reqFound)
+
+	assert.Equal(t, 401, w.Code)
+}
+
+func TestAuthTokenMiddlewareMalformedToken(t *testing.T) {
+	authConfig = &models.AuthConfiguration{
+		Issuer:          "issuer",
+		TokenSigningAlg: []string{"RS256"},
+		Audience:        "audience",
+		ScopeClaim:      "scp",
+		Scopes:          []string{"api"},
+		ClaimFields:     []string{"test"},
+	}
+
+	router := http.NewServeMux()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
+	}
+
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
+
+	reqFound, _ := http.NewRequest("GET", "/test", nil)
+	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", ""))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, reqFound)
 
@@ -337,15 +362,14 @@ func TestAuthMiddlewareValid(t *testing.T) {
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, _ := token.SignedString(priv)
 
-	router := mux.NewRouter()
-	router.Use(TokenAuthMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", TokenAuthMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", tokenString))
@@ -356,17 +380,17 @@ func TestAuthMiddlewareValid(t *testing.T) {
 }
 
 func TestOPAMiddlewareValid(t *testing.T) {
-	opaQuery = loadOpaQuery("./test.rego")
+	os.Setenv("AUTH_REGO_PATH", "./test.rego")
+	opaQuery = loadOpaQuery()
 
-	router := mux.NewRouter()
-	router.Use(OpaMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", OpaMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", "pass"))
@@ -377,17 +401,17 @@ func TestOPAMiddlewareValid(t *testing.T) {
 }
 
 func TestOPAMiddleware403(t *testing.T) {
-	opaQuery = loadOpaQuery("./test.rego")
+	os.Setenv("AUTH_REGO_PATH", "./test.rego")
+	opaQuery = loadOpaQuery()
 
-	router := mux.NewRouter()
-	router.Use(OpaMiddleware())
+	router := http.NewServeMux()
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	}
 
-	router.HandleFunc("/test", handler).Methods("GET")
+	router.Handle("GET /test", OpaMiddleware(http.HandlerFunc(handler)))
 
 	reqFound, _ := http.NewRequest("GET", "/test", nil)
 	reqFound.Header.Add("Authorization", fmt.Sprintf("Bearer %v", "deny"))

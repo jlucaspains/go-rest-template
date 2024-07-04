@@ -1,50 +1,34 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
+	"errors"
 	"goapi-template/models"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHealthSuccess(t *testing.T) {
-	r, db := setup(true, false)
-	handlers := &Handlers{DB: db}
+	db := &QuerierMock{PingDbResult: 1}
+	r := setup(db)
 
-	r.HandleFunc("/health", handlers.GetHealth).Methods("GET")
+	code, result, _, err := makeRequest[models.HealthResult](r, "GET", "/health", nil)
 
-	reqFound, _ := http.NewRequest("GET", "/health", bytes.NewBuffer([]byte{}))
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, reqFound)
-
-	result := &models.HealthResult{}
-	json.Unmarshal(w.Body.Bytes(), result)
-
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusOK, code)
 	assert.True(t, result.Healthy)
 	assert.True(t, result.Dependencies[0].Healthy)
 }
 
 func TestHealthBadDB(t *testing.T) {
-	r, db := setup(true, false)
-	handlers := &Handlers{DB: db}
-	r.HandleFunc("/health", handlers.GetHealth).Methods("GET")
+	db := &QuerierMock{PingDbError: errors.New("Bad DB")}
+	r := setup(db)
 
-	newDB, _ := db.DB()
-	newDB.Close()
+	code, result, _, err := makeRequest[models.HealthResult](r, "GET", "/health", nil)
 
-	reqFound, _ := http.NewRequest("GET", "/health", bytes.NewBuffer([]byte{}))
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, reqFound)
-
-	result := &models.HealthResult{}
-	json.Unmarshal(w.Body.Bytes(), result)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusInternalServerError, code)
 	assert.False(t, result.Healthy)
 	assert.False(t, result.Dependencies[0].Healthy)
 }

@@ -17,12 +17,12 @@ import (
 //	@Router			/health [get]
 func (h Handlers) GetHealth(w http.ResponseWriter, r *http.Request) {
 	isDbHealthy := true
-	localDB, err := h.DB.DB()
+	pingResult, err := h.Queries.PingDb(r.Context())
 	if err != nil {
 		isDbHealthy = false
 	}
 
-	isDbHealthy = localDB.Ping() == nil
+	isDbHealthy = pingResult == 1
 	dbHealth := models.HealthResultItem{Name: "DB", Healthy: isDbHealthy}
 	result := &models.HealthResult{Healthy: isDbHealthy, Dependencies: []models.HealthResultItem{dbHealth}}
 

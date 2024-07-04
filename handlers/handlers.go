@@ -2,40 +2,73 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"goapi-template/auth"
+	"goapi-template/db"
 	"goapi-template/models"
 	"goapi-template/util"
+	"log/slog"
 	"net/http"
 	"reflect"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gorilla/mux"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Handlers struct {
-	DB *gorm.DB
+	Queries db.Querier
 }
 
 func (h Handlers) ErrorToHttpResult(err error) (int, *models.ErrorResult) {
+	slog.Error("Error handled", "error", err)
+
 	if vErrs, ok := err.(validator.ValidationErrors); ok {
 		out := util.TranslateErrors(vErrs)
 		return http.StatusBadRequest, &models.ErrorResult{Errors: out}
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
-		return http.StatusNotFound, &models.ErrorResult{Errors: []string{"Record not found"}}
-	} else if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return http.StatusConflict, &models.ErrorResult{Errors: []string{"Record duplication detected"}}
-	} else if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-		// With gorm error translation, most providers will translate
-		// unique key errors automatically. The SQLite provider used for
-		// testing will not though. This workaround is primarily help unit tests.
-		return http.StatusConflict, &models.ErrorResult{Errors: []string{"Record duplication detected"}}
+	}
+
+	if err == pgx.ErrNoRows {
+		return http.StatusNotFound, nil
+	}
+
+	if dbError, ok := err.(*pgconn.PgError); ok {
+		if dbError.Code == "23505" {
+			return http.StatusConflict, &models.ErrorResult{Errors: []string{"Record duplication detected"}}
+		}
 	}
 
 	return http.StatusInternalServerError, &models.ErrorResult{Errors: []string{"Unknown error"}}
 }
+
+// func translateErrors(err validator.ValidationErrors) []string {
+// 	out := make([]string, len(err))
+// 	for i, fe := range err {
+// 		out[i] = getValidationErrorMsg(fe)
+// 	}
+// 	return out
+// }
+
+// func getValidationErrorMsg(fe validator.FieldError) string {
+// 	switch fe.Tag() {
+// 	case "required":
+// 		return fmt.Sprintf("%s is required", fe.Field())
+// 	case "lte":
+// 		return fmt.Sprintf("%s should be less than or equal to %s", fe.Field(), fe.Param())
+// 	case "lt":
+// 		return fmt.Sprintf("%s should be less than %s", fe.Field(), fe.Param())
+// 	case "gte":
+// 		return fmt.Sprintf("%s should be greater than or equal to %s", fe.Field(), fe.Param())
+// 	case "gt":
+// 		return fmt.Sprintf("%s should be greater than %s", fe.Field(), fe.Param())
+// 	case "min":
+// 		return fmt.Sprintf("%s should have minimum length of %s", fe.Field(), fe.Param())
+// 	case "max":
+// 		return fmt.Sprintf("%s should have maximum length of %s", fe.Field(), fe.Param())
+// 	case "alpha":
+// 		return fmt.Sprintf("%s should contain alpha characters only", fe.Field())
+// 	}
+// 	return "Unknown error"
+// }
 
 func (h Handlers) GetUser(r *http.Request) *auth.User {
 	if r == nil {
@@ -101,7 +134,5 @@ func (h Handlers) Status(w http.ResponseWriter, statusCode int) {
 }
 
 func (h Handlers) Param(r *http.Request, key string) string {
-	vars := mux.Vars(r)
-
-	return vars[key]
+	return r.PathValue(key)
 }
