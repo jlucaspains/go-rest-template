@@ -31,5 +31,5 @@ func (h Handlers) GetHealth(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusInternalServerError
 	}
 
-	h.JSON(w, status, result)
+	JSON(w, status, result)
 }

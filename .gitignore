@@ -2,3 +2,6 @@
 .env
 coverage
 *.db
+coverage.xml
+profile.cov
+profile.json
