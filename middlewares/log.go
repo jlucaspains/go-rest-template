@@ -40,7 +40,7 @@ func LogMiddleware(next http.Handler) http.Handler {
 			"method", r.Method,
 			"url", r.URL,
 			"duration", time.Since(startTime),
-			"status", logRespWriter.statusCode)
-
+			"status", logRespWriter.statusCode,
+			"traceId", r.Context().Value(ContextKey("traceId")))
 	})
 }

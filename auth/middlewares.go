@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"goapi-template/middlewares"
 	"goapi-template/models"
 	"log"
 	"log/slog"
@@ -32,35 +33,41 @@ const UserKey key = 1
 func TokenAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		returnResult := "valid"
+
+		defer func() {
+			elapsed := time.Since(start)
+			slog.Debug("Auth middleware",
+				"timeElapsed", elapsed,
+				"result", returnResult,
+				"traceId", r.Context().Value(middlewares.ContextKey("traceId")))
+		}()
 
 		token, err := extractToken(r)
 
 		if err != nil {
-			slog.Error("token check failed", "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Header().Set("Content-Type", "application/json")
 			data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
 			result, _ := json.Marshal(data)
 			w.Write(result)
+			returnResult = err.Error()
 			return
 		}
 
 		user, err := validateUserToken(token, authConfig, cachedSet)
 
 		if err != nil {
-			slog.Error("token check failed", "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Header().Set("Content-Type", "application/json")
-			data := &models.ErrorResult{Errors: []string{"Auth token was not provided or is invalid"}}
+			data := &models.ErrorResult{Errors: []string{"Auth token is invalid"}}
 			result, _ := json.Marshal(data)
 			w.Write(result)
+			returnResult = err.Error()
 			return
 		}
 
 		newReq := r.WithContext(context.WithValue(r.Context(), UserKey, user))
-
-		elapsed := time.Since(start)
-		slog.Info("Auth Middleware timing", "timeElapsed", elapsed)
 
 		next.ServeHTTP(w, newReq)
 	})
@@ -69,6 +76,16 @@ func TokenAuthMiddleware(next http.Handler) http.Handler {
 func OpaMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		returnResult := "allowed"
+
+		defer func() {
+			elapsed := time.Since(start)
+			slog.Debug("OPA middleware",
+				"timeElapsed", elapsed,
+				"result", returnResult,
+				"traceId", r.Context().Value(middlewares.ContextKey("traceId")))
+		}()
+
 		token, _ := extractToken(r)
 
 		input := map[string]interface{}{
@@ -82,6 +99,7 @@ func OpaMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Content-Type", "application/json")
 			result, _ := json.Marshal(err)
 			w.Write(result)
+			returnResult = err.Error()
 			return
 		}
 
@@ -90,11 +108,9 @@ func OpaMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Content-Type", "application/json")
 			result, _ := json.Marshal(&models.ErrorResult{Errors: []string{"forbidden"}})
 			w.Write(result)
+			returnResult = "forbidden"
 			return
 		}
-
-		elapsed := time.Since(start)
-		slog.Info("Opa Middleware timing", "timeElapsed", elapsed)
 
 		next.ServeHTTP(w, r)
 	})

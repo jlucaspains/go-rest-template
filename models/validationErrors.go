@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-type SliceValidationError []error
+type ValidationErrors []error
 
-func (err SliceValidationError) Error() string {
+func (err ValidationErrors) Error() string {
 	n := len(err)
 	switch n {
 	case 0:

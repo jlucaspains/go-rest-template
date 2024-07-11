@@ -68,22 +68,24 @@ func initConfiguration() {
 }
 
 func withMiddlewares(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
-	return middlewares.LogMiddleware(
-		config.cors.Handler(
-			auth.OpaMiddleware(
+	return middlewares.TraceMiddleware(
+		middlewares.LogMiddleware(
+			config.cors.Handler(
 				auth.TokenAuthMiddleware(
-					http.HandlerFunc(handler)))))
+					auth.OpaMiddleware(
+						http.HandlerFunc(handler))))))
 }
 
 func onlyLogMiddleware(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
-	return middlewares.LogMiddleware(
-		http.HandlerFunc(handler))
+	return middlewares.TraceMiddleware(
+		middlewares.LogMiddleware(
+			http.HandlerFunc(handler)))
 }
 
 func setupRouter(db db.Querier) http.Handler {
 	slog.Info("Starting API... \n")
 
-	controllers := &handlers.Handlers{Queries: db}
+	controllers := handlers.New(db)
 	router := http.NewServeMux()
 
 	router.HandleFunc("OPTIONS /", config.cors.HandlerFunc)

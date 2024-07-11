@@ -57,12 +57,11 @@ func (m *QuerierMock) PingDb(ctx context.Context) (int32, error) {
 
 func TestGetUser(t *testing.T) {
 
-	handlers := new(Handlers)
 	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
 	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
 	newReq := req.WithContext(context.WithValue(req.Context(), auth.UserKey, body))
 
-	user := handlers.GetUser(newReq)
+	user := GetUser(newReq.Context())
 
 	assert.Equal(t, "test", user.ID)
 	assert.Equal(t, "test", user.Name)
@@ -70,28 +69,25 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestGetUserEmail(t *testing.T) {
-	handlers := new(Handlers)
 	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
 	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
 	newReq := req.WithContext(context.WithValue(req.Context(), auth.UserKey, body))
 
-	email := handlers.GetUserEmail(newReq)
+	email := GetUserEmail(newReq.Context())
 
 	assert.Equal(t, "email@test.com", email)
 }
 
 func TestGetUserEmailEmpty1(t *testing.T) {
-	handlers := new(Handlers)
-	email := handlers.GetUserEmail(nil)
+	email := GetUserEmail(context.TODO())
 
 	assert.Equal(t, "", email)
 }
 
 func TestGetUserEmailEmpty2(t *testing.T) {
-	handlers := new(Handlers)
 	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
 
-	email := handlers.GetUserEmail(req)
+	email := GetUserEmail(req.Context())
 
 	assert.Equal(t, "", email)
 }
@@ -123,7 +119,7 @@ func makeRequest[K any | []any](router *http.ServeMux, method string, url string
 
 func setup(querierMock *QuerierMock) *http.ServeMux {
 	router := http.NewServeMux()
-	handlers := &Handlers{Queries: querierMock}
+	handlers := New(querierMock)
 	router.Handle("GET /person/{id}", mockAuthMiddleware(http.HandlerFunc(handlers.GetPerson)))
 	router.Handle("PUT /person/{id}", mockAuthMiddleware(http.HandlerFunc(handlers.PutPerson)))
 	router.Handle("POST /person", mockAuthMiddleware(http.HandlerFunc(handlers.PostPerson)))
@@ -170,8 +166,7 @@ func TestErrorTranslationSuccess(t *testing.T) {
 
 	validate := validator.New()
 	err := validate.Struct(user)
-	handlers := new(Handlers)
-	code, result := handlers.ErrorToHttpResult(err)
+	code, result := ErrorToHttpResult(err, context.Background())
 
 	assert.Equal(t, http.StatusBadRequest, code)
 
@@ -187,8 +182,7 @@ func TestErrorTranslationSuccess(t *testing.T) {
 }
 
 func TestErrorTranslationServerError(t *testing.T) {
-	handlers := new(Handlers)
-	code, result := handlers.ErrorToHttpResult(fmt.Errorf("Something went wrong"))
+	code, result := ErrorToHttpResult(fmt.Errorf("Something went wrong"), context.Background())
 	assert.Equal(t, http.StatusInternalServerError, code)
 
 	assert.Equal(t, "Unknown error", result.Errors[0])
