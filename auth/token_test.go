@@ -4,10 +4,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	"goapi-template/models"
+	"goapi-template/config"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -29,7 +28,7 @@ func (j TestJWKS) Keyfunc(token *jwt.Token) (interface{}, error) {
 }
 
 func TestValidToken(t *testing.T) {
-	authConfig := &models.AuthConfiguration{
+	authConfig := &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -63,7 +62,7 @@ func TestValidToken(t *testing.T) {
 }
 
 func TestTokenExpired(t *testing.T) {
-	authConfig := &models.AuthConfiguration{
+	authConfig := &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -96,7 +95,7 @@ func TestTokenExpired(t *testing.T) {
 }
 
 func TestBadTokenAudience(t *testing.T) {
-	authConfig := &models.AuthConfiguration{
+	authConfig := &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -129,7 +128,7 @@ func TestBadTokenAudience(t *testing.T) {
 }
 
 func TestBadTokenScope(t *testing.T) {
-	authConfig := &models.AuthConfiguration{
+	authConfig := &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -162,7 +161,7 @@ func TestBadTokenScope(t *testing.T) {
 }
 
 func TestBadTokenSignature(t *testing.T) {
-	authConfig := &models.AuthConfiguration{
+	authConfig := &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -196,7 +195,7 @@ func TestBadTokenSignature(t *testing.T) {
 }
 
 func TestBadTokenSignatureAlg(t *testing.T) {
-	authConfig := &models.AuthConfiguration{
+	authConfig := &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -228,30 +227,6 @@ func TestBadTokenSignatureAlg(t *testing.T) {
 	assert.Equal(t, "token signature alg and issuer alg do not match", err.Error())
 }
 
-func TestLoadAuthConfig(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
-			"issuer":"issuer",
-			"jwks_uri":"jwks_uri",
-			"id_token_signing_alg_values_supported":["alg"]
-		}`))
-	}))
-	defer server.Close()
-
-	os.Setenv("AUTH_SCOPES", "api,test")
-	os.Setenv("AUTH_CLAIMS", "sid")
-	os.Setenv("AUTH_CONFIG_URL", server.URL)
-	os.Setenv("AUTH_AUDIENCE", "aud")
-
-	config := loadConfig()
-
-	assert.NotNil(t, config)
-	assert.Equal(t, "issuer", config.Issuer)
-	assert.Equal(t, "jwks_uri", config.JWKSUri)
-	assert.Contains(t, config.TokenSigningAlg, "alg")
-}
-
 func TestLoadJWKSCache(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -274,10 +249,10 @@ func TestLoadJWKSCache(t *testing.T) {
 	}))
 	defer server.Close()
 
-	os.Setenv("AUTH_CONFIG_URL", server.URL)
-	os.Setenv("AUTH_AUDIENCE", "aud")
+	t.Setenv("AUTH_CONFIG_URL", server.URL)
+	t.Setenv("AUTH_AUDIENCE", "aud")
 
-	authConfig = &models.AuthConfiguration{
+	authConfig = &config.AuthConfiguration{
 		JWKSUri: server.URL,
 	}
 	cache := loadJWKSCache()
@@ -287,6 +262,7 @@ func TestLoadJWKSCache(t *testing.T) {
 }
 
 func TestLoadOPAQuery(t *testing.T) {
+	t.Setenv("AUTH_REGO_PATH", "./test.rego")
 	query := loadOpaQuery()
 
 	assert.NotNil(t, query)
@@ -310,7 +286,7 @@ func TestAuthTokenMiddlewareWithoutToken(t *testing.T) {
 }
 
 func TestAuthTokenMiddlewareMalformedToken(t *testing.T) {
-	authConfig = &models.AuthConfiguration{
+	authConfig = &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -337,7 +313,7 @@ func TestAuthTokenMiddlewareMalformedToken(t *testing.T) {
 }
 
 func TestAuthMiddlewareValid(t *testing.T) {
-	authConfig = &models.AuthConfiguration{
+	authConfig = &config.AuthConfiguration{
 		Issuer:          "issuer",
 		TokenSigningAlg: []string{"RS256"},
 		Audience:        "audience",
@@ -380,7 +356,7 @@ func TestAuthMiddlewareValid(t *testing.T) {
 }
 
 func TestOPAMiddlewareValid(t *testing.T) {
-	os.Setenv("AUTH_REGO_PATH", "./test.rego")
+	t.Setenv("AUTH_REGO_PATH", "./test.rego")
 	opaQuery = loadOpaQuery()
 
 	router := http.NewServeMux()
@@ -401,7 +377,7 @@ func TestOPAMiddlewareValid(t *testing.T) {
 }
 
 func TestOPAMiddleware403(t *testing.T) {
-	os.Setenv("AUTH_REGO_PATH", "./test.rego")
+	t.Setenv("AUTH_REGO_PATH", "./test.rego")
 	opaQuery = loadOpaQuery()
 
 	router := http.NewServeMux()
@@ -419,4 +395,24 @@ func TestOPAMiddleware403(t *testing.T) {
 	router.ServeHTTP(w, reqFound)
 
 	assert.Equal(t, 403, w.Code)
+}
+
+func TestSliceContains(t *testing.T) {
+	collection := []string{
+		"test1", "test2", "test3",
+	}
+
+	result := sliceContains(collection, "test1")
+
+	assert.True(t, result)
+}
+
+func TestNotSliceContains(t *testing.T) {
+	collection := []string{
+		"test1", "test2", "test3",
+	}
+
+	result := sliceContains(collection, "test4")
+
+	assert.False(t, result)
 }

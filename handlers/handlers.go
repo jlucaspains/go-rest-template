@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"goapi-template/auth"
 	"goapi-template/db"
 	"goapi-template/middlewares"
 	"goapi-template/models"
-	"goapi-template/util"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -25,14 +25,14 @@ func New(querier db.Querier) Handlers {
 	return Handlers{Queries: querier}
 }
 
-func ErrorToHttpResult(err error, ctx context.Context) (int, *models.ErrorResult) {
+func errorToHttpResult(err error, ctx context.Context) (int, *models.ErrorResult) {
 	slog.Error("Error handled",
 		"error", err,
 		"traceId", ctx.Value(middlewares.ContextKey("traceId")),
 	)
 
 	if vErrs, ok := err.(validator.ValidationErrors); ok {
-		out := util.TranslateErrors(vErrs)
+		out := translateErrors(vErrs)
 		return http.StatusBadRequest, &models.ErrorResult{Errors: out}
 	}
 
@@ -49,7 +49,7 @@ func ErrorToHttpResult(err error, ctx context.Context) (int, *models.ErrorResult
 	return http.StatusInternalServerError, &models.ErrorResult{Errors: []string{"Unknown error"}}
 }
 
-func GetUser(ctx context.Context) *auth.User {
+func getUser(ctx context.Context) *auth.User {
 	if ctx == nil {
 		return nil
 	}
@@ -61,15 +61,15 @@ func GetUser(ctx context.Context) *auth.User {
 	return nil
 }
 
-func GetUserEmail(ctx context.Context) string {
-	if user := GetUser(ctx); user != nil {
+func getUserEmail(ctx context.Context) string {
+	if user := getUser(ctx); user != nil {
 		return user.Email
 	}
 
 	return ""
 }
 
-func BindJSON(r *http.Request, result any) error {
+func bindJSON(r *http.Request, result any) error {
 	err := json.NewDecoder(r.Body).Decode(result)
 
 	if err != nil {
@@ -101,17 +101,47 @@ func BindJSON(r *http.Request, result any) error {
 	}
 }
 
-func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
+func writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	result, _ := json.Marshal(data)
 	w.Write(result)
 }
 
-func Status(w http.ResponseWriter, statusCode int) {
+func writeStatus(w http.ResponseWriter, statusCode int) {
 	w.WriteHeader(statusCode)
 }
 
-func Param(r *http.Request, key string) string {
+func getParam(r *http.Request, key string) string {
 	return r.PathValue(key)
+}
+
+func translateErrors(err validator.ValidationErrors) []string {
+	out := make([]string, len(err))
+	for i, fe := range err {
+		out[i] = getValidationErrorMsg(fe)
+	}
+	return out
+}
+
+func getValidationErrorMsg(fe validator.FieldError) string {
+	switch fe.Tag() {
+	case "required":
+		return fmt.Sprintf("%s is required", fe.Field())
+	case "lte":
+		return fmt.Sprintf("%s should be less than or equal to %s", fe.Field(), fe.Param())
+	case "lt":
+		return fmt.Sprintf("%s should be less than %s", fe.Field(), fe.Param())
+	case "gte":
+		return fmt.Sprintf("%s should be greater than or equal to %s", fe.Field(), fe.Param())
+	case "gt":
+		return fmt.Sprintf("%s should be greater than %s", fe.Field(), fe.Param())
+	case "min":
+		return fmt.Sprintf("%s should have minimum length of %s", fe.Field(), fe.Param())
+	case "max":
+		return fmt.Sprintf("%s should have maximum length of %s", fe.Field(), fe.Param())
+	case "alpha":
+		return fmt.Sprintf("%s should contain alpha characters only", fe.Field())
+	}
+	return "Unknown error"
 }
