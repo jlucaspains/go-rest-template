@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rs/cors"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
@@ -19,16 +18,6 @@ import (
 	"goapi-template/handlers"
 	"goapi-template/middlewares"
 )
-
-type configuration struct {
-	env              string
-	cors             cors.Cors
-	enableSwagger    bool
-	webPort          string
-	tlsCertFile      string
-	tlsCertKeyFile   string
-	connectionString string
-}
 
 var configValues *config.Configuration
 
