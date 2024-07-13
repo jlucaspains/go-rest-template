@@ -61,7 +61,7 @@ func TestGetUser(t *testing.T) {
 	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
 	newReq := req.WithContext(context.WithValue(req.Context(), auth.UserKey, body))
 
-	user := GetUser(newReq.Context())
+	user := getUser(newReq.Context())
 
 	assert.Equal(t, "test", user.ID)
 	assert.Equal(t, "test", user.Name)
@@ -73,13 +73,13 @@ func TestGetUserEmail(t *testing.T) {
 	body := &auth.User{ID: "test", Name: "test", Email: "email@test.com"}
 	newReq := req.WithContext(context.WithValue(req.Context(), auth.UserKey, body))
 
-	email := GetUserEmail(newReq.Context())
+	email := getUserEmail(newReq.Context())
 
 	assert.Equal(t, "email@test.com", email)
 }
 
 func TestGetUserEmailEmpty1(t *testing.T) {
-	email := GetUserEmail(context.TODO())
+	email := getUserEmail(context.TODO())
 
 	assert.Equal(t, "", email)
 }
@@ -87,7 +87,7 @@ func TestGetUserEmailEmpty1(t *testing.T) {
 func TestGetUserEmailEmpty2(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/dummy", bytes.NewReader([]byte("")))
 
-	email := GetUserEmail(req.Context())
+	email := getUserEmail(req.Context())
 
 	assert.Equal(t, "", email)
 }
@@ -166,7 +166,7 @@ func TestErrorTranslationSuccess(t *testing.T) {
 
 	validate := validator.New()
 	err := validate.Struct(user)
-	code, result := ErrorToHttpResult(err, context.Background())
+	code, result := errorToHttpResult(err, context.Background())
 
 	assert.Equal(t, http.StatusBadRequest, code)
 
@@ -182,8 +182,48 @@ func TestErrorTranslationSuccess(t *testing.T) {
 }
 
 func TestErrorTranslationServerError(t *testing.T) {
-	code, result := ErrorToHttpResult(fmt.Errorf("Something went wrong"), context.Background())
+	code, result := errorToHttpResult(fmt.Errorf("Something went wrong"), context.Background())
 	assert.Equal(t, http.StatusInternalServerError, code)
 
 	assert.Equal(t, "Unknown error", result.Errors[0])
+}
+
+func TestTranslateErrorSuccess(t *testing.T) {
+	type User struct {
+		Username         string `validate:"required"`
+		LessThanEqual    string `validate:"lte=10"`
+		LessThan         string `validate:"lt=10"`
+		GreaterThanEqual int    `validate:"gte=10"`
+		GreaterThan      int    `validate:"gt=10"`
+		Min              int    `validate:"min=10"`
+		Max              int    `validate:"max=10"`
+		Alpha            string `validate:"alpha"`
+	}
+
+	user := User{
+		Username:         "",
+		LessThan:         "VeryLongSoItFails",
+		LessThanEqual:    "VeryLongSoItFails",
+		GreaterThan:      1,
+		GreaterThanEqual: 1,
+		Min:              9,
+		Max:              11,
+		Alpha:            "123",
+	}
+
+	validate := validator.New()
+	err := validate.Struct(user)
+	errors, _ := err.(validator.ValidationErrors)
+
+	result := translateErrors(errors)
+
+	assert.Len(t, result, 8)
+	assert.Equal(t, "Username is required", result[0])
+	assert.Equal(t, "LessThanEqual should be less than or equal to 10", result[1])
+	assert.Equal(t, "LessThan should be less than 10", result[2])
+	assert.Equal(t, "GreaterThanEqual should be greater than or equal to 10", result[3])
+	assert.Equal(t, "GreaterThan should be greater than 10", result[4])
+	assert.Equal(t, "Min should have minimum length of 10", result[5])
+	assert.Equal(t, "Max should have maximum length of 10", result[6])
+	assert.Equal(t, "Alpha should contain alpha characters only", result[7])
 }

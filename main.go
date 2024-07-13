@@ -3,74 +3,28 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
-	"github.com/rs/cors"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"goapi-template/auth"
+	"goapi-template/config"
 	"goapi-template/db"
 	"goapi-template/docs"
 	"goapi-template/handlers"
 	"goapi-template/middlewares"
 )
 
-type configuration struct {
-	env              string
-	cors             cors.Cors
-	enableSwagger    bool
-	webPort          string
-	tlsCertFile      string
-	tlsCertKeyFile   string
-	connectionString string
-}
-
-var config configuration
-
-func initConfiguration() {
-	config.env = os.Getenv("ENV")
-
-	if err := godotenv.Load(); err != nil && config.env == "" {
-		log.Fatal(fmt.Printf("Error loading .env file: %s", err))
-	}
-
-	allowedOrigin, _ := os.LookupEnv("ALLOWED_ORIGIN")
-
-	config.cors = *cors.New(cors.Options{
-		AllowedOrigins: []string{allowedOrigin},
-	})
-
-	if enableSwagger, ok := os.LookupEnv("ENABLE_SWAGGER"); ok {
-		config.enableSwagger = enableSwagger == "true"
-	}
-
-	if webPort, ok := os.LookupEnv("WEB_PORT"); ok {
-		config.webPort = webPort
-	} else {
-		config.webPort = "localhost:8000"
-	}
-
-	config.tlsCertFile, _ = os.LookupEnv("TLS_CERT_FILE")
-	config.tlsCertKeyFile, _ = os.LookupEnv("TLS_CERT_KEY_FILE")
-
-	if connectionString, ok := os.LookupEnv("DB_CONNECTION_STRING"); ok {
-		config.connectionString = connectionString
-	} else {
-		log.Fatal("must set DB_CONNECTION_STRING=<connection string>")
-	}
-}
+var configValues *config.Configuration
 
 func withMiddlewares(handler func(w http.ResponseWriter, r *http.Request)) http.Handler {
 	return middlewares.TraceMiddleware(
 		middlewares.LogMiddleware(
-			config.cors.Handler(
+			configValues.WebServerConfig.Cors.Handler(
 				auth.TokenAuthMiddleware(
 					auth.OpaMiddleware(
 						http.HandlerFunc(handler))))))
@@ -88,7 +42,7 @@ func setupRouter(db db.Querier) http.Handler {
 	controllers := handlers.New(db)
 	router := http.NewServeMux()
 
-	router.HandleFunc("OPTIONS /", config.cors.HandlerFunc)
+	router.HandleFunc("OPTIONS /", configValues.WebServerConfig.Cors.HandlerFunc)
 	router.Handle("GET /health", onlyLogMiddleware(controllers.GetHealth))
 
 	router.Handle("GET /person/{id}", withMiddlewares(controllers.GetPerson))
@@ -96,7 +50,7 @@ func setupRouter(db db.Querier) http.Handler {
 	router.Handle("PUT /person/{id}", withMiddlewares(controllers.PutPerson))
 	router.Handle("DELETE /person/{id}", withMiddlewares(controllers.DeletePerson))
 
-	if config.enableSwagger {
+	if configValues.WebServerConfig.EnableSwagger {
 		slog.Info("Swagger enabled")
 		swaggerHandler := httpSwagger.Handler(
 			httpSwagger.URL("/swagger/doc.json"),
@@ -110,12 +64,12 @@ func setupRouter(db db.Querier) http.Handler {
 	return router
 }
 
-func initDB(ctx context.Context) (db.Querier, func()) {
-	if err := db.Init(config.connectionString); err != nil {
+func initDB(ctx context.Context, configValues *config.Configuration) (db.Querier, func()) {
+	if err := db.Init(configValues.WebServerConfig.ConnectionString); err != nil {
 		log.Fatal(err)
 	}
 
-	conn, err := pgxpool.New(ctx, config.connectionString)
+	conn, err := pgxpool.New(ctx, configValues.WebServerConfig.ConnectionString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,24 +79,24 @@ func initDB(ctx context.Context) (db.Querier, func()) {
 	return queries, conn.Close
 }
 
-func startWebServer(querier db.Querier) func(ctx context.Context) error {
+func startWebServer(querier db.Querier, configValues *config.Configuration) func(ctx context.Context) error {
 	slog.Info("Setting up API router...\n")
 	docs.SwaggerInfo.BasePath = "/"
 
 	router := setupRouter(querier)
 
 	srv := &http.Server{
-		Addr: config.webPort,
+		Addr: configValues.WebServerConfig.WebPort,
 	}
 	srv.Handler = router
 
-	useTls := config.tlsCertFile != "" && config.tlsCertKeyFile != ""
+	useTls := configValues.WebServerConfig.TLSCertFile != "" && configValues.WebServerConfig.TLSCertKeyFile != ""
 
-	slog.Info("Starting TLS server", "port", config.webPort, "tls", useTls)
+	slog.Info("Starting TLS server", "port", configValues.WebServerConfig.WebPort, "tls", useTls)
 
 	var err error
 	if useTls {
-		err = srv.ListenAndServeTLS(config.tlsCertFile, config.tlsCertKeyFile)
+		err = srv.ListenAndServeTLS(configValues.WebServerConfig.TLSCertFile, configValues.WebServerConfig.TLSCertKeyFile)
 	} else {
 		err = srv.ListenAndServe()
 	}
@@ -162,15 +116,15 @@ func main() {
 	ctx := context.Background()
 
 	slog.Info("loading .env file...\n")
-	initConfiguration()
+	configValues = config.LoadConfig()
 
 	slog.Info("Init auth...\n")
-	auth.Init()
+	auth.Init(configValues.AuthConfig)
 
 	slog.Info("Init DB...\n")
-	db, dbDispose := initDB(ctx)
+	db, dbDispose := initDB(ctx, configValues)
 	defer dbDispose()
 
-	webDispose := startWebServer(db)
+	webDispose := startWebServer(db, configValues)
 	defer webDispose(ctx)
 }

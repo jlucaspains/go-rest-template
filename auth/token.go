@@ -1,10 +1,8 @@
 package auth
 
 import (
-	"encoding/json"
 	"fmt"
-	"goapi-template/models"
-	"goapi-template/util"
+	"goapi-template/config"
 	"net/http"
 	"strings"
 
@@ -15,7 +13,16 @@ type JKWS interface {
 	Keyfunc(token *jwt.Token) (interface{}, error)
 }
 
-func validateUserToken(tokenString string, authConfig *models.AuthConfiguration, jwks JKWS) (*User, error) {
+func sliceContains[K comparable](s []K, e K) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func validateUserToken(tokenString string, authConfig *config.AuthConfiguration, jwks JKWS) (*User, error) {
 	token, err := verifyToken(tokenString, authConfig, jwks)
 	if err != nil {
 		return nil, err
@@ -32,7 +39,7 @@ func validateUserToken(tokenString string, authConfig *models.AuthConfiguration,
 
 	scope := claims[authConfig.ScopeClaim].(string)
 
-	scopeIsValid := len(authConfig.Scopes) == 0 || util.Contains(authConfig.Scopes, scope)
+	scopeIsValid := len(authConfig.Scopes) == 0 || sliceContains(authConfig.Scopes, scope)
 	if !scopeIsValid {
 		return nil, fmt.Errorf("token doesn't have valid scopes")
 	}
@@ -51,46 +58,25 @@ func validateUserToken(tokenString string, authConfig *models.AuthConfiguration,
 	return user, nil
 }
 
-func readAuthConfiguration(configUrl string) (*models.AuthConfiguration, error) {
-	if configUrl == "" {
-		return nil, fmt.Errorf("cannot read OpenId configuration without URL")
-	}
-
-	response, err := http.Get(configUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	defer response.Body.Close()
-
-	target := new(models.AuthConfiguration)
-	err = json.NewDecoder(response.Body).Decode(target)
-	if err != nil {
-		return nil, err
-	}
-
-	return target, nil
-}
-
 func extractToken(r *http.Request) (string, error) {
 	bearerToken := r.Header.Get("Authorization")
 
 	strArr := strings.Split(bearerToken, " ")
-	if len(strArr) != 2 {
+	if len(strArr) != 2 || strArr[1] == "" {
 		return "", fmt.Errorf("invalid bearer token")
 	}
 
 	return strArr[1], nil
 }
 
-func verifyToken(tokenString string, config *models.AuthConfiguration, jwks JKWS) (*jwt.Token, error) {
+func verifyToken(tokenString string, config *config.AuthConfiguration, jwks JKWS) (*jwt.Token, error) {
 	token, err := jwt.Parse(tokenString, jwks.Keyfunc)
 
 	if err != nil {
 		return nil, err
 	}
 
-	algIsValid := util.Contains(config.TokenSigningAlg, token.Method.Alg())
+	algIsValid := sliceContains(config.TokenSigningAlg, token.Method.Alg())
 	if !algIsValid {
 		return nil, fmt.Errorf("token signature alg and issuer alg do not match")
 	}

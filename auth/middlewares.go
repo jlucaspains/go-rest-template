@@ -3,25 +3,25 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"goapi-template/config"
 	"goapi-template/middlewares"
 	"goapi-template/models"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	keyfunc "github.com/MicahParks/keyfunc/v2"
 	"github.com/open-policy-agent/opa/rego"
 )
 
-var authConfig *models.AuthConfiguration
+var authConfig *config.AuthConfiguration
 var opaQuery *rego.PreparedEvalQuery
 var cachedSet JKWS
 
-func Init() {
-	authConfig = loadConfig()
+func Init(configValues *config.AuthConfiguration) {
+	authConfig = configValues
 	opaQuery = loadOpaQuery()
 	cachedSet = loadJWKSCache()
 }
@@ -114,36 +114,6 @@ func OpaMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func loadConfig() *models.AuthConfiguration {
-	configUrl, ok := os.LookupEnv("AUTH_CONFIG_URL")
-	if !ok {
-		log.Fatal("AUTH_CONFIG_URL is a required parameter")
-	}
-
-	config, err := readAuthConfiguration(configUrl)
-	if err != nil {
-		log.Fatalf("Failed to load Auth configuration. Error: %v", err)
-	}
-
-	config.Audience = os.Getenv("AUTH_AUDIENCE")
-
-	scopeClaim, ok := os.LookupEnv("AUTH_SCOPE_CLAIM")
-	if !ok {
-		scopeClaim = "scp"
-	}
-	config.ScopeClaim = scopeClaim
-
-	if scopes, ok := os.LookupEnv("AUTH_SCOPES"); ok {
-		config.Scopes = strings.Split(scopes, ",")
-	}
-
-	if authClaims, ok := os.LookupEnv("AUTH_CLAIMS"); ok {
-		config.ClaimFields = strings.Split(authClaims, ",")
-	}
-
-	return config
 }
 
 func loadOpaQuery() *rego.PreparedEvalQuery {

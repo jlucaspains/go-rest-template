@@ -24,17 +24,17 @@ import (
 //	@Failure		400				{object}	models.ErrorResult
 //	@Router			/person/{id}	[get]
 func (h Handlers) GetPerson(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(Param(r, "id"), 10, 32)
+	id, err := strconv.ParseInt(getParam(r, "id"), 10, 32)
 	if err != nil {
-		JSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
+		writeJSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
 		return
 	}
 
 	result, err := h.Queries.GetPersonById(r.Context(), int32(id))
 
 	if err != nil {
-		status, body := ErrorToHttpResult(err, r.Context())
-		JSON(w, status, body)
+		status, body := errorToHttpResult(err, r.Context())
+		writeJSON(w, status, body)
 		return
 	}
 	body := models.Person{
@@ -46,7 +46,7 @@ func (h Handlers) GetPerson(w http.ResponseWriter, r *http.Request) {
 		UpdateUser: result.UpdateUser,
 	}
 
-	JSON(w, http.StatusOK, body)
+	writeJSON(w, http.StatusOK, body)
 }
 
 // AddAccount godoc
@@ -65,14 +65,14 @@ func (h Handlers) GetPerson(w http.ResponseWriter, r *http.Request) {
 //	@Router			/person [post]
 func (h Handlers) PostPerson(w http.ResponseWriter, r *http.Request) {
 	body := &models.Person{}
-	if err := BindJSON(r, body); err != nil {
-		status, body := ErrorToHttpResult(err, r.Context())
-		JSON(w, status, body)
+	if err := bindJSON(r, body); err != nil {
+		status, body := errorToHttpResult(err, r.Context())
+		writeJSON(w, status, body)
 		return
 	}
 
 	body.ID = 0 // ensure we leverage auto increment
-	body.UpdateUser = GetUserEmail(r.Context())
+	body.UpdateUser = getUserEmail(r.Context())
 
 	result, err := h.Queries.InsertPerson(r.Context(), db.InsertPersonParams{
 		Name:       body.Name,
@@ -83,12 +83,12 @@ func (h Handlers) PostPerson(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		status, body := ErrorToHttpResult(err, r.Context())
-		JSON(w, status, body)
+		status, body := errorToHttpResult(err, r.Context())
+		writeJSON(w, status, body)
 		return
 	}
 
-	JSON(w, http.StatusAccepted, &models.IdResult{ID: int(result.ID)})
+	writeJSON(w, http.StatusAccepted, &models.IdResult{ID: int(result.ID)})
 }
 
 // PutPerson godoc
@@ -107,19 +107,19 @@ func (h Handlers) PostPerson(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400		{object}	models.ErrorResult
 //	@Router			/person/{id} [put]
 func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(Param(r, "id"), 10, 32)
+	id, err := strconv.ParseInt(getParam(r, "id"), 10, 32)
 	if err != nil {
-		JSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
+		writeJSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
 		return
 	}
 	body := &models.Person{}
-	if err := BindJSON(r, body); err != nil {
-		status, err := ErrorToHttpResult(err, r.Context())
-		JSON(w, status, err)
+	if err := bindJSON(r, body); err != nil {
+		status, err := errorToHttpResult(err, r.Context())
+		writeJSON(w, status, err)
 		return
 	}
 
-	body.UpdateUser = GetUserEmail(r.Context())
+	body.UpdateUser = getUserEmail(r.Context())
 
 	recordsUpdated, err := h.Queries.UpdatePerson(r.Context(), db.UpdatePersonParams{
 		ID:         int32(id),
@@ -131,17 +131,17 @@ func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		status, err := ErrorToHttpResult(err, r.Context())
-		JSON(w, status, err)
+		status, err := errorToHttpResult(err, r.Context())
+		writeJSON(w, status, err)
 		return
 	}
 
 	if recordsUpdated == 0 {
-		Status(w, http.StatusNotFound)
+		writeStatus(w, http.StatusNotFound)
 		return
 	}
 
-	Status(w, http.StatusAccepted)
+	writeStatus(w, http.StatusAccepted)
 }
 
 // DeletePerson godoc
@@ -157,24 +157,24 @@ func (h Handlers) PutPerson(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{object}	models.ErrorResult
 //	@Router			/person/{id} [delete]
 func (h Handlers) DeletePerson(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(Param(r, "id"), 10, 32)
+	id, err := strconv.ParseInt(getParam(r, "id"), 10, 32)
 	if err != nil {
-		JSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
+		writeJSON(w, http.StatusBadRequest, &models.ErrorResult{Errors: []string{"ID is invalid"}})
 		return
 	}
 
 	result, err := h.Queries.DeletePerson(r.Context(), int32(id))
 
 	if err != nil {
-		status, err := ErrorToHttpResult(err, r.Context())
-		JSON(w, status, err)
+		status, err := errorToHttpResult(err, r.Context())
+		writeJSON(w, status, err)
 		return
 	}
 
 	if result == 0 {
-		Status(w, http.StatusNotFound)
+		writeStatus(w, http.StatusNotFound)
 		return
 	}
 
-	Status(w, http.StatusAccepted)
+	writeStatus(w, http.StatusAccepted)
 }
