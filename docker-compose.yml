@@ -33,7 +33,21 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     networks:
       - backend
+  cache:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - cache:/var/lib/redis/data
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass "$${REDIS_PASSWORD}"
+    networks:
+      - backend
 volumes:
   data:
+  cache:
 networks:
   backend:

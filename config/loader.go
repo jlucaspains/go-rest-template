@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
@@ -22,11 +24,6 @@ type AuthConfiguration struct {
 	ClaimFields     []string `json:"claims"`
 }
 
-type Configuration struct {
-	WebServerConfig *WebServerConfiguration
-	AuthConfig      *AuthConfiguration
-}
-
 type WebServerConfiguration struct {
 	Env              string
 	Cors             cors.Cors
@@ -35,6 +32,20 @@ type WebServerConfiguration struct {
 	TLSCertFile      string
 	TLSCertKeyFile   string
 	ConnectionString string
+}
+
+type CacheConfiguration struct {
+	EnableTransparentCaching bool
+	RedisAddress             string
+	RedisPassword            string
+	RedisDb                  int
+	Expiration               time.Duration
+}
+
+type Configuration struct {
+	WebServerConfig *WebServerConfiguration
+	CacheConfig     *CacheConfiguration
+	AuthConfig      *AuthConfiguration
 }
 
 func loadAuthConfig() (*AuthConfiguration, error) {
@@ -125,6 +136,43 @@ func loadWebServerConfig() (*WebServerConfiguration, error) {
 	return config, nil
 }
 
+func loadCacheConfig() (*CacheConfiguration, error) {
+	config := &CacheConfiguration{}
+
+	if enableTransparentCaching, ok := os.LookupEnv("ENABLE_TRANSPARENT_CACHE"); ok {
+		config.EnableTransparentCaching = enableTransparentCaching == "true"
+	}
+
+	if !config.EnableTransparentCaching {
+		// no reason to keep loading the cache config if we're not using it
+		return config, nil
+	}
+
+	if redisAddress, ok := os.LookupEnv("REDIS_ADDRESS"); ok {
+		config.RedisAddress = redisAddress
+	} else {
+		config.RedisAddress = "localhost:6379"
+	}
+
+	if redisDbStr, ok := os.LookupEnv("REDIS_DB"); ok {
+		redisDb, _ := strconv.Atoi(redisDbStr)
+		config.RedisDb = redisDb
+	} else {
+		config.RedisDb = 0
+	}
+
+	if expiration, ok := os.LookupEnv("REDIS_DEFAULT_EXPIRATION"); ok {
+		expirationParsed, _ := time.ParseDuration(expiration)
+		config.Expiration = expirationParsed
+	} else {
+		config.Expiration = time.Hour
+	}
+
+	config.RedisPassword, _ = os.LookupEnv("REDIS_PASSWORD")
+
+	return config, nil
+}
+
 func LoadConfig() *Configuration {
 	webServerConfig, err := loadWebServerConfig()
 	if err != nil {
@@ -136,8 +184,14 @@ func LoadConfig() *Configuration {
 		log.Fatal(err)
 	}
 
+	cacheConfig, err := loadCacheConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &Configuration{
 		WebServerConfig: webServerConfig,
 		AuthConfig:      authConfig,
+		CacheConfig:     cacheConfig,
 	}
 }
