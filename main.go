@@ -12,6 +12,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"goapi-template/auth"
+	"goapi-template/cache"
 	"goapi-template/config"
 	"goapi-template/db"
 	"goapi-template/docs"
@@ -79,6 +80,18 @@ func initDB(ctx context.Context, configValues *config.Configuration) (db.Querier
 	return queries, conn.Close
 }
 
+func initCache(querier db.Querier, configValues *config.CacheConfiguration) (db.Querier, func()) {
+	// replace regular querier with caching querier if config says so
+	if configValues.EnableTransparentCaching {
+		cache := cache.NewRawCacher(configValues)
+
+		return db.NewCachingQuerier(querier, cache), cache.Close
+	}
+
+	return querier, func() {}
+
+}
+
 func startWebServer(querier db.Querier, configValues *config.Configuration) func(ctx context.Context) error {
 	slog.Info("Setting up API router...\n")
 	docs.SwaggerInfo.BasePath = "/"
@@ -122,9 +135,13 @@ func main() {
 	auth.Init(configValues.AuthConfig)
 
 	slog.Info("Init DB...\n")
-	db, dbDispose := initDB(ctx, configValues)
+	querier, dbDispose := initDB(ctx, configValues)
 	defer dbDispose()
 
-	webDispose := startWebServer(db, configValues)
+	slog.Info("Init Caching...")
+	querier, cacheDispose := initCache(querier, configValues.CacheConfig)
+	defer cacheDispose()
+
+	webDispose := startWebServer(querier, configValues)
 	defer webDispose(ctx)
 }
