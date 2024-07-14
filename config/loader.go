@@ -151,7 +151,7 @@ func loadCacheConfig() (*CacheConfiguration, error) {
 	if redisAddress, ok := os.LookupEnv("REDIS_ADDRESS"); ok {
 		config.RedisAddress = redisAddress
 	} else {
-		config.RedisAddress = "localhost:8000"
+		config.RedisAddress = "localhost:6379"
 	}
 
 	if redisDbStr, ok := os.LookupEnv("REDIS_DB"); ok {
@@ -159,6 +159,13 @@ func loadCacheConfig() (*CacheConfiguration, error) {
 		config.RedisDb = redisDb
 	} else {
 		config.RedisDb = 0
+	}
+
+	if expiration, ok := os.LookupEnv("REDIS_DEFAULT_EXPIRATION"); ok {
+		expirationParsed, _ := time.ParseDuration(expiration)
+		config.Expiration = expirationParsed
+	} else {
+		config.Expiration = time.Hour
 	}
 
 	config.RedisPassword, _ = os.LookupEnv("REDIS_PASSWORD")
