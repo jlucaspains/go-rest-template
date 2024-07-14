@@ -25,7 +25,11 @@ func (c *CachingQuerier) GetPeople(ctx context.Context) ([]Person, error) {
 		return *cached, nil
 	}
 
-	return c.Queries.GetPeople(ctx)
+	result, err := c.Queries.GetPeople(ctx)
+
+	cache.SetObject(c.Cache, ctx, "person:all", &result)
+
+	return result, err
 }
 
 func (c *CachingQuerier) GetPersonById(ctx context.Context, id int32) (Person, error) {
@@ -39,7 +43,11 @@ func (c *CachingQuerier) GetPersonById(ctx context.Context, id int32) (Person, e
 		return *cached, nil
 	}
 
-	return c.Queries.GetPersonById(ctx, id)
+	result, err := c.Queries.GetPersonById(ctx, id)
+
+	cache.SetObject(c.Cache, ctx, fmt.Sprintf("person:%d", id), &result)
+
+	return result, err
 }
 
 func (c *CachingQuerier) InsertPerson(ctx context.Context, arg InsertPersonParams) (Person, error) {
