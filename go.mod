@@ -1,7 +1,7 @@
 module goapi-template
 
 go 1.22
-toolchain go1.22.5
+toolchain go1.24.1
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
@@ -12,7 +12,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/joho/godotenv v1.5.1
 	github.com/open-policy-agent/opa v0.70.0
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
