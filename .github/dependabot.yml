@@ -11,5 +11,5 @@ updates:
       interval: "monthly"
     groups:
       dependencies:
-        patters:
+        patterns:
           - "*"
