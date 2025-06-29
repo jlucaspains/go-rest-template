@@ -200,7 +200,7 @@ func TestUpdatePersonWithCacheSuccess(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, int64(1), result)
 	assert.Equal(t, "person:1", cacherMock.SetStringKey)
-	assert.Equal(t, `{"ID":1,"Name":"Test","Email":"email@email.com","CreatedAt":"0001-01-01T00:00:00Z","UpdatedAt":"0001-01-01T00:00:00Z","UpdateUser":""}`, cacherMock.SetStringValue)
+	assert.Equal(t, `{"ID":1,"Name":"Test","Email":"email@email.com","CreatedAt":"0001-01-01T00:00:00","UpdatedAt":"0001-01-01T00:00:00","UpdateUser":""}`, cacherMock.SetStringValue)
 }
 
 func TestUpdatePersonWithCacheFail(t *testing.T) {
